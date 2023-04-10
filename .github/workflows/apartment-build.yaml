@@ -1,0 +1,48 @@
+name: apartment-parser build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  format-and-lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up GO
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.17
+          cache: false
+
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Format
+        run: go fmt ./apartment-parser && git diff --exit-code
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v3
+
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up GO
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.17
+          cache: false
+
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Build
+        run: go build -o apartment-parser ./apartment-parser
