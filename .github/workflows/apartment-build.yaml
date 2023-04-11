@@ -23,7 +23,7 @@ jobs:
           submodules: recursive
 
       - name: Format
-        run: go fmt ./apartment-parser && git diff --exit-code
+        run: go fmt . && git diff --exit-code
 
       - name: Lint
         uses: golangci/golangci-lint-action@v3
@@ -45,4 +45,4 @@ jobs:
           submodules: recursive
 
       - name: Build
-        run: go build -o apartment-parser ./apartment-parser
+        run: go build -o apartment-parser .
