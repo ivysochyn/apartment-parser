@@ -1,8 +1,8 @@
 package parser
 
-import(
-	"net/http"
+import (
 	"io/ioutil"
+	"net/http"
 )
 
 // FetchHTMLPage fetches the HTML page from the given URL
@@ -10,22 +10,23 @@ import(
 // If an error occurs, it returns an empty string and the error.
 //
 // Example:
-//  html, err := FetchHTMLPage("https://www.google.com")
-//  if err != nil {
-//      // handle error
-//  }
+//
+//	html, err := FetchHTMLPage("https://www.google.com")
+//	if err != nil {
+//	    // handle error
+//	}
 func FetchHTMLPage(url string) (string, error) {
 	resp, err := http.Get(url)
 	if err != nil {
-        return "", err
+		return "", err
 	}
 
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-        return "", err
+		return "", err
 	}
 
-    return string(body), nil
+	return string(body), nil
 }
