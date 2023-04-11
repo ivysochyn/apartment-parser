@@ -11,12 +11,11 @@ import (
 )
 
 type Offer struct {
-	title     string
-	price     string
-	location  string
-	time      string
-	url       string
-	image_url string
+	title    string
+	price    string
+	location string
+	time     string
+	url      string
 }
 
 // fetchHTMLPage fetches the HTML page at the given URL and stores it in the given path.
@@ -103,6 +102,13 @@ func parseOffer(text string) Offer {
 						offer.url = url
 					}
 				}
+			case "div":
+				// Indicates that the offer is a featured one
+				for _, attr := range t.Attr {
+					if attr.Key == "data-testid" && attr.Val == "adCard-featured" {
+						return Offer{}
+					}
+				}
 			}
 
 		case html.TextToken:
@@ -120,17 +126,6 @@ func parseOffer(text string) Offer {
 				}
 				offer.time = tkn.Token().Data
 				isTimeAndLoc = false
-			}
-		default:
-			t := tkn.Token()
-			if t.Data == "img" {
-				for _, attr := range t.Attr {
-					if attr.Key == "src" {
-						src_val := attr.Val
-						src_val = strings.Split(src_val, ";")[0]
-						offer.image_url = src_val
-					}
-				}
 			}
 		}
 	}
@@ -215,6 +210,5 @@ func main() {
 		fmt.Println("Location: ", offer.location)
 		fmt.Println("Time: ", offer.time)
 		fmt.Println("URL: ", offer.url)
-		fmt.Println("Image URL: ", offer.image_url)
 	}
 }
