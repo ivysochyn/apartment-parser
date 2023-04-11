@@ -1,3 +1,6 @@
+// Package parser contains functions for parsing the HTML code of the website.
+//
+// It is used to extract all the non-featured offers of apartments for rent from a given link.
 package parser
 
 import (
@@ -5,6 +8,17 @@ import (
 	"strings"
 )
 
+// Offer represents a single offer from the website
+// It contains the title, price, location, time and url.
+//
+// Example:
+// 	{
+// 		Title: "Mieszkanie 2 pokojowe",
+// 		Price: "1 000 zł",
+// 		Location: "Warszawa",
+// 		Time: "dzisiaj 12:00",
+// 		Url: "https://www.olx.pl/oferta/mieszkanie-2-pokojowe-ID6Q2Zr.html"
+// 	}
 type Offer struct {
 	Title    string
 	Price    string
@@ -13,6 +27,62 @@ type Offer struct {
 	Url      string
 }
 
+
+// checkAttr checks if the given attribute is present in the list of attributes
+// and if it has the given value.
+//
+// Returns true if the attribute is present and has the given value.
+// Returns false otherwise.
+//
+// Example:
+// 	attrs := []html.Attribute{
+// 		{Key: "class", Val: "css-10b0gli er34gjf0"},
+// 		{Key: "data-testid", Val: "adCard-featured"},
+// 	}
+// 	checkAttr(attrs, "class", "css-10b0gli er34gjf0") // returns true
+// 	checkAttr(attrs, "data-testid", "adCard-featured") // returns true
+// 	checkAttr(attrs, "class", "css-10b0gli er34gjf1") // returns false
+func checkAttr(attrs []html.Attribute, key, value string) bool {
+    for _, attr := range attrs {
+        if attr.Key == key && attr.Val == value {
+            return true
+        }
+    }
+    return false
+}
+
+// getAttr returns the value of the given attribute.
+// If the attribute is not present, it returns an empty string.
+//
+// Example:
+// 	attrs := []html.Attribute{
+// 		{Key: "class", Val: "css-10b0gli er34gjf0"},
+// 		{Key: "data-testid", Val: "adCard-featured"},
+// 	}
+// 	getAttr(attrs, "class") // returns "css-10b0gli er34gjf0"
+// 	getAttr(attrs, "data-testid") // returns "adCard-featured"
+func getAttr(attrs []html.Attribute, key string) string {
+    for _, attr := range attrs {
+        if attr.Key == key {
+            return attr.Val
+        }
+    }
+    return ""
+}
+
+// parseOffer parses the given text and returns an Offer struct.
+// The text should be the content of a single offer.
+//
+// Example:
+// 	offer := parseOffer(`
+// 		<div class="css-1sw7q4x">
+// 			<a href="/oferta/mieszkanie-2-pokojowe-ID6Q2Zr.html">
+// 				<h6 class="css-1j9dxys e1n63ojh0">Mieszkanie 2 pokojowe</h6>
+// 				<p class="css-10b0gli er34gjf0">1 000 zł</p>
+// 				<p class="css-veheph er34gjf0">Warszawa, dzisiaj 12:00</p>
+// 			</a>
+// 		</div>
+// 	`)
 func parseOffer(text string) Offer {
 	tkn := html.NewTokenizer(strings.NewReader(text))
 
@@ -32,33 +102,18 @@ func parseOffer(text string) Offer {
 			case "h6":
 				isTitle = true
 			case "p":
-				for _, attr := range t.Attr {
-					if attr.Key == "class" {
-						switch attr.Val {
-						case "css-veheph er34gjf0":
-							isTimeAndLoc = true
-						case "css-10b0gli er34gjf0":
-							isPrice = true
-						}
-					}
-				}
+                isPrice = checkAttr(t.Attr, "class", "css-10b0gli er34gjf0")
+                isTimeAndLoc = checkAttr(t.Attr, "class", "css-veheph er34gjf0")
 			case "a":
-				for _, attr := range t.Attr {
-					if attr.Key == "href" {
-						url := attr.Val
-						if url[0] == '/' {
-							url = "https://www.olx.pl" + url
-						}
-						offer.Url = url
-					}
-				}
+                offer.Url = getAttr(t.Attr, "href")
+                if offer.Url[0] == '/' {
+                    offer.Url = "https://www.olx.pl" + offer.Url
+                }
 			case "div":
-				// Indicates that the offer is a featured one
-				for _, attr := range t.Attr {
-					if attr.Key == "data-testid" && attr.Val == "adCard-featured" {
-						return Offer{}
-					}
-				}
+                // Check if the offer is featured
+                if (checkAttr(t.Attr, "data-testid", "adCard-featured")) {
+                    return Offer{}
+                }
 			}
 
 		case html.TextToken:
@@ -81,43 +136,51 @@ func parseOffer(text string) Offer {
 	}
 }
 
-func ParseHtml(text string) (data []Offer) {
-	tkn := html.NewTokenizer(strings.NewReader(text))
+// ParseHtml parses the given text and returns a list of offers.
+// The text should be the content of the page with the offers.
+//
+// Example:
+// 	offers := ParseHtml(`
+// 		<div class="css-1sw7q4x">
+// 			<a href="/oferta/mieszkanie-2-pokojowe-ID6Q2Zr.html">
+// 				<h6 class="css-1j9dxys e1n63ojh0">Mieszkanie 2 pokojowe</h6>
+// 				<p class="css-10b0gli er34gjf0">1 000 zł</p>
+// 				<p class="css-veheph er34gjf0">Warszawa, dzisiaj 12:00</p>
+// 			</a>
+// 		</div>`)
+func ParseHtml(text string) []Offer {
+	tokenizer := html.NewTokenizer(strings.NewReader(text))
 
-	var offers []Offer
-
-	var isOffer bool
+	offers := make([]Offer, 0)
+	isOffer := false
 	var offerContent string
 	offerSeparator := "css-1sw7q4x"
 	depth := 0
 
 	for {
-		tt := tkn.Next()
+		tokenType := tokenizer.Next()
 
-		switch tt {
+		switch tokenType {
 		case html.ErrorToken:
 			// End of the document, we're done
 			return offers
-		case html.StartTagToken:
-			t := tkn.Token()
+
+        case html.StartTagToken:
+			token := tokenizer.Token()
 			if !isOffer {
-				if t.Data == "div" {
-					for _, attr := range t.Attr {
-						if attr.Key == "class" && attr.Val == offerSeparator {
-							isOffer = true
-							break
-						}
-					}
+				if token.Data == "div" {
+                    isOffer = checkAttr(token.Attr, "class", offerSeparator)
 				}
 			} else {
-				if t.Data == "div" {
+				if token.Data == "div" {
 					depth++
 				}
-				offerContent += t.String()
+				offerContent += token.String()
 			}
-		case html.EndTagToken:
-			t := tkn.Token()
-			if isOffer && t.Data == "div" && depth == 0 {
+
+        case html.EndTagToken:
+			token := tokenizer.Token()
+			if isOffer && token.Data == "div" && depth == 0 {
 				isOffer = false
 				offer := parseOffer(offerContent)
 
@@ -129,16 +192,17 @@ func ParseHtml(text string) (data []Offer) {
 				offerContent = ""
 				depth = 0
 			} else if isOffer {
-				if t.Data == "div" {
+				if token.Data == "div" {
 					depth--
 				}
-				offerContent += t.String()
+				offerContent += token.String()
 			}
-		default:
+
+        default:
 			if isOffer {
-				offerContent += tkn.Token().String()
+				offerContent += tokenizer.Token().String()
+				continue
 			}
 		}
 	}
 }
-
