@@ -21,11 +21,16 @@ import (
 //		Url: "https://www.olx.pl/oferta/mieszkanie-2-pokojowe-ID6Q2Zr.html"
 //	}
 type Offer struct {
-	Title    string
-	Price    string
-	Location string
-	Time     string
-	Url      string
+	Title             string
+	Price             string
+	Location          string
+	Time              string
+	Url               string
+	AdditionalPayment string
+	Description       string
+	Rooms             string
+	Area              string
+	Floor             string
 }
 
 // checkAttr checks if the given attribute is present in the list of attributes
@@ -72,12 +77,95 @@ func getAttr(attrs []html.Attribute, key string) string {
 	return ""
 }
 
-// parseOffer parses the given text and returns an Offer struct.
+// parseOffer parses the given offer appending the missing data.
+// It returns the updated offer.
+func ParseOffer(offer Offer) Offer {
+	// If url starts with www.olx.pl
+	if strings.HasPrefix(offer.Url, "https://www.olx.pl") {
+		offer = parseOlxOffer(offer)
+	} else if strings.HasPrefix(offer.Url, "https://www.otodom.pl") {
+		offer = parseOtodomOffer(offer)
+	}
+	return offer
+}
+
+// parseOlxOffer parses the given olx offer appending the missing data.
+// It returns the updated offer.
+func parseOlxOffer(offer Offer) Offer {
+	text, err := FetchHTMLPage(offer.Url)
+
+	if err != nil {
+		return offer
+	}
+
+	tkn := html.NewTokenizer(strings.NewReader(text))
+
+	var isDescription bool
+	var isTag bool
+
+	for {
+		tt := tkn.Next()
+		switch tt {
+		case html.ErrorToken:
+			// End of the document, we're done
+			return offer
+
+		case html.StartTagToken:
+			t := tkn.Token()
+			switch t.Data {
+			case "div":
+				isDescription = checkAttr(t.Attr, "class", "css-bgzo2k er34gjf0")
+			case "p":
+				isTag = checkAttr(t.Attr, "class", "css-b5m1rv er34gjf0")
+			}
+
+		case html.TextToken:
+			if isDescription {
+				offer.Description += string(tkn.Text())
+			} else if isTag {
+				data := string(tkn.Text())
+				if strings.HasPrefix(data, "Czynsz") {
+					// TODO: Extract the additional payment and convert it to a number
+					offer.AdditionalPayment = data
+				} else if strings.HasPrefix(data, "Liczba pokoi") {
+					// TODO: Extract the number of rooms and convert it to a number
+					offer.Rooms += data
+				} else if strings.HasPrefix(data, "Powierzchnia") {
+					// TODO: Extract the area number and convert it to a number
+					offer.Area += data
+				} else if strings.HasPrefix(data, "Poziom") {
+					// TODO: Extract the floor number and convert it to a number
+					offer.Floor += data
+				}
+			}
+
+		case html.EndTagToken:
+			t := tkn.Token()
+			if t.Data == "div" {
+				if isDescription {
+					isDescription = false
+				}
+			} else if t.Data == "p" {
+				if isTag {
+					isTag = false
+				}
+			}
+
+		}
+	}
+}
+
+func parseOtodomOffer(offer Offer) Offer {
+	// TODO: parse otodom offer
+	return offer
+}
+
+// extractOffer parses the given text and returns an Offer struct.
 // The text should be the content of a single offer.
 //
 // Example:
 //
-//	offer := parseOffer(`
+//	offer := extractOffer(`
 //		<div class="css-1sw7q4x">
 //			<a href="/oferta/mieszkanie-2-pokojowe-ID6Q2Zr.html">
 //				<h6 class="css-1j9dxys e1n63ojh0">Mieszkanie 2 pokojowe</h6>
@@ -86,7 +174,7 @@ func getAttr(attrs []html.Attribute, key string) string {
 //			</a>
 //		</div>
 //	`)
-func parseOffer(text string) Offer {
+func extractOffer(text string) Offer {
 	tkn := html.NewTokenizer(strings.NewReader(text))
 
 	offer := Offer{}
@@ -98,6 +186,10 @@ func parseOffer(text string) Offer {
 		switch tt {
 		case html.ErrorToken:
 			// End of the document, we're done
+			if offer.Url == "" {
+				return Offer{}
+			}
+			offer = ParseOffer(offer)
 			return offer
 		case html.StartTagToken:
 			t := tkn.Token()
@@ -186,7 +278,7 @@ func ParseHtml(text string) []Offer {
 			token := tokenizer.Token()
 			if isOffer && token.Data == "div" && depth == 0 {
 				isOffer = false
-				offer := parseOffer(offerContent)
+				offer := extractOffer(offerContent)
 
 				// TODO: For some reason, the last div recognized as offer is empty
 				// Inspect this later
