@@ -2,9 +2,11 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 // Stuct to hold the search term.
@@ -119,4 +121,29 @@ func CreateUrl(searchTerm SearchTerm) (string, error) {
 		}
 	}
 	return url, nil
+}
+
+func GetSearchInfo(url string) (string, error) {
+	// If URL starts with "olx.pl"
+	if strings.HasPrefix(url, "https://www.olx.pl") {
+		// Split the URL into parts
+		parts := strings.Split(url, "/")
+		// for i, part := range parts {
+		//     fmt.Println(i, part)
+		// }
+
+		city := strings.ToUpper(parts[6][:1]) + parts[6][1:]
+
+		// Extract the price from '?search[filter_float_price:from]=1000&search[filter_float_price:to]=2000'
+		price := strings.Split(parts[8], "=")
+		price_min := price[1]
+		price_min = strings.Split(price_min, "&")[0]
+		price_max := price[2]
+		fmt.Println(price_min, price_max)
+
+		city = city + " (" + price_min + "-" + price_max + " zł)"
+		return city, nil
+	} else {
+		return "", errors.New("Invalid URL")
+	}
 }

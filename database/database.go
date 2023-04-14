@@ -8,6 +8,11 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+type Search struct {
+	ID  int64
+	URL string
+}
+
 // AddOffer function creates a new database entry for a new offer.
 // It takes in an offer struct and database connection as parameters.
 // If the offer already exists in the database, it will not be added.
@@ -64,6 +69,16 @@ func AddSearch(db *sql.DB, userID int64, url string) error {
 	}
 
 	_, err = stmt.Exec(userID, url)
+	return err
+}
+
+func DeleteSearch(db *sql.DB, ID int64) error {
+	stmt, err := db.Prepare("DELETE FROM searches WHERE id = ?")
+	if err != nil {
+		return err
+	}
+
+	_, err = stmt.Exec(ID)
 	return err
 }
 
@@ -156,23 +171,32 @@ func CreateSearchesDatabase(dbName string) (*sql.DB, error) {
 // Example:
 //
 //	searches, err := GetSearches(db, 1)
-func GetSearches(db *sql.DB, userID int64) ([]string, error) {
-	var searches []string
-	rows, err := db.Query("SELECT url FROM searches WHERE UserID = ?", userID)
+func GetSearches(db *sql.DB, userID int64) ([]Search, error) {
+	var searches []Search
+	rows, err := db.Query("SELECT id, url FROM searches WHERE UserID = ?", userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var search string
-		err = rows.Scan(&search)
+		var search Search
+		err = rows.Scan(&search.ID, &search.URL)
 		if err != nil {
 			return nil, err
 		}
 		searches = append(searches, search)
 	}
 	return searches, nil
+}
+
+func GetSearch(db *sql.DB, id int64) (Search, error) {
+	var search Search
+	err := db.QueryRow("SELECT id, url FROM searches WHERE id = ?", id).Scan(&search.ID, &search.URL)
+	if err != nil {
+		return Search{}, err
+	}
+	return search, nil
 }
 
 // ListOffers function lists all offers in the database.
