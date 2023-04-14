@@ -40,11 +40,48 @@ func AddOffer(db *sql.DB, offer parser.Offer) error {
 	}
 
 	_, err = stmt.Exec(offer.Title, offer.Price, offer.Location, offer.Time, offer.Url)
+	return err
+}
+
+// AddSearch function creates a new database entry for a new search.
+// It takes in a user id and a search url as parameters.
+// If the search already exists in the database, it will not be added.
+// It returns an error if the database connection fails.
+//
+// Example:
+//
+//	err := AddSearch(db, 1, "https://www.olx.pl/nieruchomosci/mieszkania/wynajem/warszawa/")
+func AddSearch(db *sql.DB, userID int64, url string) error {
+	// If the search already exists, do not add it
+	exists, err := searchExists(db, userID, url)
+	if err != nil || exists {
+		return err
+	}
+
+	stmt, err := db.Prepare("INSERT INTO searches(UserID, url) VALUES(?, ?)")
 	if err != nil {
 		return err
 	}
 
-	return nil
+	_, err = stmt.Exec(userID, url)
+	return err
+}
+
+// searchExists function checks if a search already exists in the database.
+// It takes in a user id and a search url as parameters.
+// It returns a boolean value and an error if the database connection fails.
+//
+// Example:
+//
+//	exists, err := searchExists(db, 1, "https://www.olx.pl/nieruchomosci/mieszkania/wynajem/warszawa/")
+func searchExists(db *sql.DB, userID int64, url string) (bool, error) {
+	var exists bool
+	// if search with the same url exists
+	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM searches WHERE UserID = ? AND url = ?)", userID, url).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
 }
 
 // offerExists function checks if an offer already exists in the database.
@@ -71,15 +108,15 @@ func offerExists(db *sql.DB, offer parser.Offer) (bool, error) {
 	return exists, nil
 }
 
-// CreateDatabase function creates a new database file.
+// CreateOffersDatabase function creates a new database file.
 // It takes in a database file name as a parameter.
 // It returns a database connection and an error if the database connection fails.
 // If the database file already exists, it will be opened instead.
 //
 // Example:
 //
-//	db, err := CreateDatabase("offers.db")
-func CreateDatabase(dbName string) (*sql.DB, error) {
+//	db, err := CreateOffersDatabase("offers.db")
+func CreateOffersDatabase(dbName string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", dbName)
 	if err != nil {
 		return nil, err
@@ -89,6 +126,53 @@ func CreateDatabase(dbName string) (*sql.DB, error) {
 		return nil, err
 	}
 	return db, nil
+}
+
+// CreateSearchesDatabase function creates a new database file.
+// It takes in a database file name as a parameter.
+// It returns a database connection and an error if the database connection fails.
+// If the database file already exists, it will be opened instead.
+//
+// Example:
+//
+//	db, err := CreateSearchesDatabase("searches.db")
+func CreateSearchesDatabase(dbName string) (*sql.DB, error) {
+	db, err := sql.Open("sqlite3", dbName)
+	if err != nil {
+		return nil, err
+	}
+	// Create a table with a single column for the url and primary key which represents the UserIDs
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS searches (id INTEGER PRIMARY KEY AUTOINCREMENT, UserID INTEGER, url TEXT)")
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
+}
+
+// GetSearches function gets all searches from the database for a specific user
+// It takes in a database connection and a user id as parameters.
+// It returns a slice of strings and an error if the database connection fails.
+//
+// Example:
+//
+//	searches, err := GetSearches(db, 1)
+func GetSearches(db *sql.DB, userID int64) ([]string, error) {
+	var searches []string
+	rows, err := db.Query("SELECT url FROM searches WHERE UserID = ?", userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var search string
+		err = rows.Scan(&search)
+		if err != nil {
+			return nil, err
+		}
+		searches = append(searches, search)
+	}
+	return searches, nil
 }
 
 // ListOffers function lists all offers in the database.
