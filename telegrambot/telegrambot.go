@@ -233,7 +233,7 @@ func handleNewSearchPrice(bot *tgbotapi.BotAPI, update tgbotapi.Update, db *sql.
 func handleSearches(bot *tgbotapi.BotAPI, update tgbotapi.Update, db *sql.DB) {
 	msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
 
-	searches, err := database.GetSearches(db, update.Message.Chat.ID)
+	searches, err := database.ListSearches(db, update.Message.Chat.ID)
 	if err != nil {
 		log.Println(err)
 	}
@@ -282,9 +282,7 @@ func listSearchInfo(bot *tgbotapi.BotAPI, update tgbotapi.Update, db *sql.DB, se
 	msg.Text = search_info
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("🧹 Clean up", "cleanup"),
-		),
-		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("❌ Cancel", "cleanup"),
 			tgbotapi.NewInlineKeyboardButtonData("🗑️ Delete search", "delete|"+strconv.Itoa(int(search.ID))),
 		),
 	)
@@ -368,7 +366,7 @@ func StartBot(debug bool) {
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
-	search_db, err := database.CreateSearchesDatabase("searches.db")
+	search_db, err := database.OpenSearchesDatabase("searches.db")
 	if err != nil {
 		log.Println(err)
 	}
