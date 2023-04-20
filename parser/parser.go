@@ -8,18 +8,20 @@ import (
 	"strings"
 )
 
-// Offer represents a single offer from the website
-// It contains the title, price, location, time and url.
+// Offer of an apartment for rent.
 //
-// Example:
+// Attributes:
 //
-//	{
-//		Title: "Mieszkanie 2 pokojowe",
-//		Price: "1 000 zł",
-//		Location: "Warszawa",
-//		Time: "dzisiaj 12:00",
-//		Url: "https://www.olx.pl/oferta/mieszkanie-2-pokojowe-ID6Q2Zr.html"
-//	}
+//	Title: The title of the offer.
+//	Price: The price of the offer.
+//	Location: The location of the offer.
+//	Time: The time offer was posted or updated.
+//	Url: The url of the offer.
+//	AdditionalPayment: The additional payment for the offer.
+//	Description: The description of the offer.
+//	Rooms: The number of rooms of the offer.
+//	Area: The area of the offer.
+//	Floor: The floor of the offer.
 type Offer struct {
 	Title             string
 	Price             string
@@ -33,21 +35,17 @@ type Offer struct {
 	Floor             string
 }
 
-// checkAttr checks if the given attribute is present in the list of attributes
-// and if it has the given value.
+// Check if the given attribute is present in the given list of attributes.
 //
-// Returns true if the attribute is present and has the given value.
-// Returns false otherwise.
+// Parameters:
 //
-// Example:
+//	attrs: The list of attributes.
+//	key: The key of the attribute.
+//	value: The value of the attribute.
 //
-//	attrs := []html.Attribute{
-//		{Key: "class", Val: "css-10b0gli er34gjf0"},
-//		{Key: "data-testid", Val: "adCard-featured"},
-//	}
-//	checkAttr(attrs, "class", "css-10b0gli er34gjf0") // returns true
-//	checkAttr(attrs, "data-testid", "adCard-featured") // returns true
-//	checkAttr(attrs, "class", "css-10b0gli er34gjf1") // returns false
+// Returns:
+//
+//	True if the attribute is present, false otherwise.
 func checkAttr(attrs []html.Attribute, key, value string) bool {
 	for _, attr := range attrs {
 		if attr.Key == key && attr.Val == value {
@@ -57,17 +55,16 @@ func checkAttr(attrs []html.Attribute, key, value string) bool {
 	return false
 }
 
-// getAttr returns the value of the given attribute.
-// If the attribute is not present, it returns an empty string.
+// Get the value of the given attribute.
 //
-// Example:
+// Parameters:
 //
-//	attrs := []html.Attribute{
-//		{Key: "class", Val: "css-10b0gli er34gjf0"},
-//		{Key: "data-testid", Val: "adCard-featured"},
-//	}
-//	getAttr(attrs, "class") // returns "css-10b0gli er34gjf0"
-//	getAttr(attrs, "data-testid") // returns "adCard-featured"
+//	attrs: The list of attributes.
+//	key: The key of the attribute.
+//
+// Returns:
+//
+//	The value of the attribute.
 func getAttr(attrs []html.Attribute, key string) string {
 	for _, attr := range attrs {
 		if attr.Key == key {
@@ -77,8 +74,15 @@ func getAttr(attrs []html.Attribute, key string) string {
 	return ""
 }
 
-// parseOffer parses the given offer appending the missing data.
-// It returns the updated offer.
+// Parse the given offer by following the url and extracting the missing data.
+//
+// Parameters:
+//
+//	offer: The offer to parse.
+//
+// Returns:
+//
+//	The parsed offer.
 func ParseOffer(offer Offer) Offer {
 	// If url starts with www.olx.pl
 	if strings.HasPrefix(offer.Url, "https://www.olx.pl") {
@@ -89,8 +93,15 @@ func ParseOffer(offer Offer) Offer {
 	return offer
 }
 
-// parseOlxOffer parses the given olx offer appending the missing data.
-// It returns the updated offer.
+// Parse the olx offer.
+//
+// Parameters:
+//
+//	offer: The offer to parse.
+//
+// Returns:
+//
+//	The parsed offer.
 func parseOlxOffer(offer Offer) Offer {
 	text, err := FetchHTMLPage(offer.Url)
 
@@ -155,25 +166,115 @@ func parseOlxOffer(offer Offer) Offer {
 	}
 }
 
+// Parse the otodom offer.
+//
+// Parameters:
+//
+//	offer: The offer to parse.
+//
+// Returns:
+//
+//	The parsed offer.
 func parseOtodomOffer(offer Offer) Offer {
-	// TODO: parse otodom offer
-	return offer
+	text, err := FetchHTMLPage(offer.Url)
+
+	if err != nil {
+		return offer
+	}
+
+	tkn := html.NewTokenizer(strings.NewReader(text))
+
+	var isArea, isRooms, isFloor, isAdditionalPayment, isDescription, isText bool
+	var deep_counter int
+
+	for {
+		tt := tkn.Next()
+		switch tt {
+		case html.ErrorToken:
+			// End of the document, we're done
+			return offer
+
+		case html.StartTagToken:
+			t := tkn.Token()
+			switch t.Data {
+			case "div":
+				deep_counter++
+				if checkAttr(t.Attr, "class", "css-kkaknb enb64yk0") {
+					// Get the 'aria-label' attribute
+					ariaLabel := getAttr(t.Attr, "aria-label")
+					switch ariaLabel {
+					case "Powierzchnia":
+						isArea = true
+						isText, isRooms, isFloor, isAdditionalPayment, isDescription = false, false, false, false, false
+						deep_counter = 1
+					case "Liczba pokoi":
+						isRooms = true
+						isText, isArea, isFloor, isAdditionalPayment, isDescription = false, false, false, false, false
+						deep_counter = 1
+					case "Piętro":
+						isFloor = true
+						isText, isArea, isRooms, isAdditionalPayment, isDescription = false, false, false, false, false
+						deep_counter = 1
+					case "Czynsz":
+						isAdditionalPayment = true
+						isText, isArea, isRooms, isFloor, isDescription = false, false, false, false, false
+						deep_counter = 1
+					}
+				} else if checkAttr(t.Attr, "class", "css-1wi2w6s enb64yk4") {
+					isText = true
+				} else if checkAttr(t.Attr, "class", "css-1wekrze e1lbnp621") {
+					isDescription = true
+				}
+			}
+
+		case html.TextToken:
+			if isText {
+				if isArea {
+					offer.Area = string(tkn.Text())
+
+				} else if isRooms {
+					offer.Rooms = string(tkn.Text())
+
+				} else if isFloor {
+					offer.Floor = string(tkn.Text())
+
+				} else if isAdditionalPayment {
+					offer.AdditionalPayment = string(tkn.Text())
+				}
+			}
+
+		case html.EndTagToken:
+			t := tkn.Token()
+			if t.Data == "div" {
+				deep_counter--
+				if deep_counter == 0 {
+					if isArea {
+						isArea = false
+					} else if isRooms {
+						isRooms = false
+					} else if isFloor {
+						isFloor = false
+					} else if isAdditionalPayment {
+						isAdditionalPayment = false
+					} else if isDescription {
+						isDescription = false
+					}
+				}
+
+			}
+		}
+	}
 }
 
-// extractOffer parses the given text and returns an Offer struct.
-// The text should be the content of a single offer.
+// Extract all the offers from the given block of code.
 //
-// Example:
+// Parameters:
 //
-//	offer := extractOffer(`
-//		<div class="css-1sw7q4x">
-//			<a href="/oferta/mieszkanie-2-pokojowe-ID6Q2Zr.html">
-//				<h6 class="css-1j9dxys e1n63ojh0">Mieszkanie 2 pokojowe</h6>
-//				<p class="css-10b0gli er34gjf0">1 000 zł</p>
-//				<p class="css-veheph er34gjf0">Warszawa, dzisiaj 12:00</p>
-//			</a>
-//		</div>
-//	`)
+//	text: The block of code to parse.
+//
+// Returns:
+//
+//	The offer extracted from the block of code.
 func extractOffer(text string) Offer {
 	tkn := html.NewTokenizer(strings.NewReader(text))
 
@@ -189,7 +290,6 @@ func extractOffer(text string) Offer {
 			if offer.Url == "" {
 				return Offer{}
 			}
-			offer = ParseOffer(offer)
 			return offer
 		case html.StartTagToken:
 			t := tkn.Token()
@@ -231,19 +331,15 @@ func extractOffer(text string) Offer {
 	}
 }
 
-// ParseHtml parses the given text and returns a list of offers.
-// The text should be the content of the page with the offers.
+// Parse the HTML code and extract all the offers.
 //
-// Example:
+// Parameters:
 //
-//	offers := ParseHtml(`
-//		<div class="css-1sw7q4x">
-//			<a href="/oferta/mieszkanie-2-pokojowe-ID6Q2Zr.html">
-//				<h6 class="css-1j9dxys e1n63ojh0">Mieszkanie 2 pokojowe</h6>
-//				<p class="css-10b0gli er34gjf0">1 000 zł</p>
-//				<p class="css-veheph er34gjf0">Warszawa, dzisiaj 12:00</p>
-//			</a>
-//		</div>`)
+//	text: The HTML code to parse.
+//
+// Returns:
+//
+//	The offers extracted from the HTML code.
 func ParseHtml(text string) []Offer {
 	tokenizer := html.NewTokenizer(strings.NewReader(text))
 

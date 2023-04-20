@@ -29,7 +29,7 @@ import (
 //	}
 //	err := AddOffer(db, offer)
 func AddOffer(db *sql.DB, offer parser.Offer) error {
-	exists, err := offerExists(db, offer)
+	exists, err := OfferExists(db, offer)
 
 	if err != nil {
 		return err
@@ -70,7 +70,7 @@ func AddOffer(db *sql.DB, offer parser.Offer) error {
 //		Url: "https://www.olx.pl/oferta/mieszkanie-2-pokojowe-ID6Q2Zr.html"
 //	}
 //	exists, err := offerExists(db, offer)
-func offerExists(db *sql.DB, offer parser.Offer) (bool, error) {
+func OfferExists(db *sql.DB, offer parser.Offer) (bool, error) {
 	var exists bool
 	// if offer with the same title and price exists
 	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM offers WHERE title = ? AND price = ?)", offer.Title, offer.Price).Scan(&exists)
