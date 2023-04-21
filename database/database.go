@@ -27,7 +27,7 @@ func OpenOffersDatabase(dbName string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS offers (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, price TEXT, location TEXT, time TEXT, url TEXT)")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS offers (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, price TEXT, location TEXT, time TEXT, url TEXT, additional_payment TEXT, description TEXT, rooms TEXT, area TEXT, floor TEXT, user_id INTEGER)")
 	if err != nil {
 		return nil, err
 	}

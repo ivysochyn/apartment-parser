@@ -7,13 +7,16 @@ import (
 )
 
 // Search struct represents a search in the database.
-// Properties:
+//
+// Attributes:
 //
 //	ID - search id
+//	UserID - user id of the user who added the search
 //	URL - search url
 type Search struct {
-	ID  int64
-	URL string
+	ID     int64
+	UserID int64
+	URL    string
 }
 
 // Create a new database entry for a new search.
@@ -154,4 +157,24 @@ func GetSearch(db *sql.DB, id int64) (Search, error) {
 		return Search{}, err
 	}
 	return search, nil
+}
+
+func GetAllSearches(db *sql.DB) ([]Search, error) {
+	var searches []Search
+	rows, err := db.Query("SELECT id, url, UserID FROM searches")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var search Search
+		err = rows.Scan(&search.ID, &search.URL, &search.UserID)
+		if err != nil {
+			return nil, err
+		}
+		searches = append(searches, search)
+	}
+
+	return searches, nil
 }

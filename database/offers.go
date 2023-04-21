@@ -13,6 +13,7 @@ import (
 //
 //	db - database connection
 //	offer - offer struct
+//	userID - user id
 //
 // Returns:
 //
@@ -27,9 +28,9 @@ import (
 //		Time: "dzisiaj 12:00",
 //		Url: "https://www.olx.pl/oferta/mieszkanie-2-pokojowe-ID6Q2Zr.html"
 //	}
-//	err := AddOffer(db, offer)
-func AddOffer(db *sql.DB, offer parser.Offer) error {
-	exists, err := OfferExists(db, offer)
+//	err := AddOffer(db, offer, 1)
+func AddOffer(db *sql.DB, offer parser.Offer, userID int64) error {
+	exists, err := OfferExists(db, offer, userID)
 
 	if err != nil {
 		return err
@@ -39,12 +40,12 @@ func AddOffer(db *sql.DB, offer parser.Offer) error {
 		return nil
 	}
 
-	stmt, err := db.Prepare("INSERT INTO offers(title, price, location, time, url) VALUES(?, ?, ?, ?, ?)")
+	stmt, err := db.Prepare("INSERT INTO offers(title, price, location, time, url, additional_payment, description, rooms, area, floor, user_id) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return err
 	}
 
-	_, err = stmt.Exec(offer.Title, offer.Price, offer.Location, offer.Time, offer.Url)
+	_, err = stmt.Exec(offer.Title, offer.Price, offer.Location, offer.Time, offer.Url, offer.AdditionalPayment, offer.Description, offer.Rooms, offer.Area, offer.Floor, userID)
 	return err
 }
 
@@ -54,6 +55,7 @@ func AddOffer(db *sql.DB, offer parser.Offer) error {
 //
 //	db - database connection
 //	offer - offer struct
+//	userID - user id
 //
 // Returns:
 //
@@ -69,11 +71,11 @@ func AddOffer(db *sql.DB, offer parser.Offer) error {
 //		Time: "dzisiaj 12:00",
 //		Url: "https://www.olx.pl/oferta/mieszkanie-2-pokojowe-ID6Q2Zr.html"
 //	}
-//	exists, err := offerExists(db, offer)
-func OfferExists(db *sql.DB, offer parser.Offer) (bool, error) {
+//	exists, err := offerExists(db, offer, 1)
+func OfferExists(db *sql.DB, offer parser.Offer, userID int64) (bool, error) {
 	var exists bool
 	// if offer with the same title and price exists
-	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM offers WHERE title = ? AND price = ?)", offer.Title, offer.Price).Scan(&exists)
+	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM offers WHERE title = ? AND price = ? AND user_id = ?)", offer.Title, offer.Price, userID).Scan(&exists)
 	if err != nil {
 		return false, err
 	}
