@@ -2,9 +2,9 @@ package parser
 
 import (
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 )
@@ -37,8 +37,8 @@ type SearchTerm struct {
 //	if err != nil {
 //	    // handle error
 //	}
-func FetchHTMLPage(url string) (string, error) {
-	resp, err := http.Get(url)
+func FetchHTMLPage(url_string string) (string, error) {
+	resp, err := http.Get(url_string)
 	if err != nil {
 		return "", err
 	}
@@ -70,79 +70,78 @@ func FetchHTMLPage(url string) (string, error) {
 //		    // handle error
 //		}
 func CreateUrl(searchTerm SearchTerm) (string, error) {
-	url := "https://www.olx.pl/nieruchomosci/mieszkania/wynajem/"
+	url_string := "https://www.olx.pl/nieruchomosci/mieszkania/wynajem/"
 
 	// Check if the search term has a location.
 	if searchTerm.Location != "" {
-		url += searchTerm.Location + "/q-mieszkanie/"
+		url_string += searchTerm.Location + "/q-mieszkanie/?search[order]=created_at:desc"
 	} else {
 		return "", errors.New("No location specified in search term.")
 	}
 
 	if searchTerm.Price_min != 0 {
-		url += "?search[filter_float_price:from]=" + strconv.FormatFloat(searchTerm.Price_min, 'f', 0, 64)
+		url_string += "&search[filter_float_price:from]=" + strconv.FormatFloat(searchTerm.Price_min, 'f', 0, 64)
 	}
 
 	if searchTerm.Price_max != 0 {
-		if url[len(url)-1] != '?' {
-			url += "&"
+		if url_string[len(url_string)-1] != '?' {
+			url_string += "&"
 		} else {
-			url += "?"
+			url_string += "?"
 		}
-		url += "search[filter_float_price:to]=" + strconv.FormatFloat(searchTerm.Price_max, 'f', 0, 64)
+		url_string += "search[filter_float_price:to]=" + strconv.FormatFloat(searchTerm.Price_max, 'f', 0, 64)
 	}
 
 	if searchTerm.Size_min != 0 {
-		if url[len(url)-1] != '?' {
-			url += "&"
+		if url_string[len(url_string)-1] != '?' {
+			url_string += "&"
 		} else {
-			url += "?"
+			url_string += "?"
 		}
-		url += "search[filter_float_m:from]=" + strconv.FormatFloat(searchTerm.Size_min, 'f', 0, 64)
+		url_string += "search[filter_float_m:from]=" + strconv.FormatFloat(searchTerm.Size_min, 'f', 0, 64)
 	}
 
 	if searchTerm.Size_max != 0 {
-		if url[len(url)-1] != '?' {
-			url += "&"
+		if url_string[len(url_string)-1] != '?' {
+			url_string += "&"
 		} else {
-			url += "?"
+			url_string += "?"
 		}
-		url += "search[filter_float_m:to]=" + strconv.FormatFloat(searchTerm.Size_max, 'f', 0, 64)
+		url_string += "search[filter_float_m:to]=" + strconv.FormatFloat(searchTerm.Size_max, 'f', 0, 64)
 	}
 
 	if searchTerm.Bedrooms != nil {
 		for i, bedroom := range searchTerm.Bedrooms {
-			if url[len(url)-1] != '?' {
-				url += "&"
+			if url_string[len(url_string)-1] != '?' {
+				url_string += "&"
 			} else {
-				url += "?"
+				url_string += "?"
 			}
-			url += "search[filter_enum_rooms][" + strconv.Itoa(i) + "]=" + bedroom
+			url_string += "search[filter_enum_rooms][" + strconv.Itoa(i) + "]=" + bedroom
 		}
 	}
-	return url, nil
+	return url_string, nil
 }
 
-func GetSearchInfo(url string) (string, error) {
+func GetSearchInfo(url_string string) (string, error) {
 	// If URL starts with "olx.pl"
-	if strings.HasPrefix(url, "https://www.olx.pl") {
+	if strings.HasPrefix(url_string, "https://www.olx.pl") {
 		// Split the URL into parts
-		parts := strings.Split(url, "/")
-		// for i, part := range parts {
-		//     fmt.Println(i, part)
-		// }
+		parts := strings.Split(url_string, "/")
 
-		city := strings.ToUpper(parts[6][:1]) + parts[6][1:]
+		// Get the city
+		text := strings.ToUpper(parts[6][:1]) + parts[6][1:]
 
-		// Extract the price from '?search[filter_float_price:from]=1000&search[filter_float_price:to]=2000'
-		price := strings.Split(parts[8], "=")
-		price_min := price[1]
-		price_min = strings.Split(price_min, "&")[0]
-		price_max := price[2]
-		fmt.Println(price_min, price_max)
+		u, err := url.Parse(url_string)
 
-		city = city + " (" + price_min + "-" + price_max + " zł)"
-		return city, nil
+		if err != nil {
+			return "", err
+		}
+
+		// Get the price
+		text += " (" + u.Query().Get("search[filter_float_price:from]") + "-" + u.Query().Get("search[filter_float_price:to]") + ")"
+
+		return text, nil
 	} else {
 		return "", errors.New("Invalid URL")
 	}
