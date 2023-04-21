@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -70,57 +71,42 @@ func FetchHTMLPage(url_string string) (string, error) {
 //		    // handle error
 //		}
 func CreateUrl(searchTerm SearchTerm) (string, error) {
-	url_string := "https://www.olx.pl/nieruchomosci/mieszkania/wynajem/"
+	var builder strings.Builder
+	builder.WriteString("https://www.olx.pl/nieruchomosci/mieszkania/wynajem/")
 
 	// Check if the search term has a location.
-	if searchTerm.Location != "" {
-		url_string += searchTerm.Location + "/q-mieszkanie/?search[order]=created_at:desc"
-	} else {
+	if searchTerm.Location == "" {
 		return "", errors.New("No location specified in search term.")
 	}
+	builder.WriteString(searchTerm.Location)
+	builder.WriteString("/q-mieszkanie/?search[order]=created_at:desc")
 
 	if searchTerm.Price_min != 0 {
-		url_string += "&search[filter_float_price:from]=" + strconv.FormatFloat(searchTerm.Price_min, 'f', 0, 64)
+		fmt.Fprintf(&builder, "&search[filter_float_price:from]=%g", searchTerm.Price_min)
 	}
 
 	if searchTerm.Price_max != 0 {
-		if url_string[len(url_string)-1] != '?' {
-			url_string += "&"
-		} else {
-			url_string += "?"
-		}
-		url_string += "search[filter_float_price:to]=" + strconv.FormatFloat(searchTerm.Price_max, 'f', 0, 64)
+		fmt.Fprintf(&builder, "&search[filter_float_price:to]=%g", searchTerm.Price_max)
 	}
 
 	if searchTerm.Size_min != 0 {
-		if url_string[len(url_string)-1] != '?' {
-			url_string += "&"
-		} else {
-			url_string += "?"
-		}
-		url_string += "search[filter_float_m:from]=" + strconv.FormatFloat(searchTerm.Size_min, 'f', 0, 64)
+		fmt.Fprintf(&builder, "&search[filter_float_m:from]=%g", searchTerm.Size_min)
 	}
 
 	if searchTerm.Size_max != 0 {
-		if url_string[len(url_string)-1] != '?' {
-			url_string += "&"
-		} else {
-			url_string += "?"
-		}
-		url_string += "search[filter_float_m:to]=" + strconv.FormatFloat(searchTerm.Size_max, 'f', 0, 64)
+		fmt.Fprintf(&builder, "&search[filter_float_m:to]=%g", searchTerm.Size_max)
 	}
 
-	if searchTerm.Bedrooms != nil {
+	if len(searchTerm.Bedrooms) > 0 {
+		values := make([]string, len(searchTerm.Bedrooms))
 		for i, bedroom := range searchTerm.Bedrooms {
-			if url_string[len(url_string)-1] != '?' {
-				url_string += "&"
-			} else {
-				url_string += "?"
-			}
-			url_string += "search[filter_enum_rooms][" + strconv.Itoa(i) + "]=" + bedroom
+			values[i] = "search[filter_enum_rooms][" + strconv.Itoa(i) + "]=" + bedroom
 		}
+		builder.WriteString("&")
+		builder.WriteString(strings.Join(values, "&"))
 	}
-	return url_string, nil
+
+	return builder.String(), nil
 }
 
 func GetSearchInfo(url_string string) (string, error) {
