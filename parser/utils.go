@@ -109,7 +109,7 @@ func CreateUrl(searchTerm SearchTerm) (string, error) {
 	return builder.String(), nil
 }
 
-func GetSearchInfo(url_string string) (string, error) {
+func GetSearchShortInfo(url_string string) (string, error) {
 	// If URL starts with "olx.pl"
 	if strings.HasPrefix(url_string, "https://www.olx.pl") {
 		// Split the URL into parts
@@ -126,6 +126,78 @@ func GetSearchInfo(url_string string) (string, error) {
 
 		// Get the price
 		text += " (" + u.Query().Get("search[filter_float_price:from]") + "-" + u.Query().Get("search[filter_float_price:to]") + ")"
+
+		return text, nil
+	} else {
+		return "", errors.New("Invalid URL")
+	}
+}
+
+func GetSearchFullInfo(url_string string) (string, error) {
+	// If URL starts with "olx.pl"
+	if strings.HasPrefix(url_string, "https://www.olx.pl") {
+		// Split the URL into parts
+		parts := strings.Split(url_string, "/")
+
+		text := "🏠 Full info of the search:\n\n"
+		// Get the city
+		text += "📍 " + strings.ToUpper(parts[6][:1]) + parts[6][1:] + "\n"
+
+		u, err := url.Parse(url_string)
+
+		if err != nil {
+			return "", err
+		}
+
+		q := u.Query()
+
+		if price_from, ok := q["search[filter_float_price:from]"]; ok {
+			if price_to, ok := q["search[filter_float_price:to]"]; ok {
+				text += "💰 Price: " + price_from[0] + "-" + price_to[0] + " zł\n"
+			}
+		}
+
+		if size_from, ok := q["search[filter_float_m:from]"]; ok {
+			if size_to, ok := q["search[filter_float_m:to]"]; ok {
+				text += "📐 Area: " + size_from[0] + "-" + size_to[0] + " m²\n"
+			}
+		}
+
+		bedrooms := make([]string, 0)
+		floors := make([]string, 0)
+
+		for key, value := range q {
+			if strings.HasPrefix(key, "search[filter_enum_floor_select]") {
+				floors = append(floors, value[0])
+			} else if strings.HasPrefix(key, "search[filter_enum_rooms]") {
+				bedrooms = append(bedrooms, value[0])
+			}
+		}
+
+		if len(bedrooms) > 0 {
+			text += "🛏 Bedrooms:\n    - "
+			for k, bedroom := range bedrooms {
+				if k != len(bedrooms)-1 {
+					text += strings.ToUpper(bedroom[:1]) + bedroom[1:] + ", "
+				} else {
+					text += strings.ToUpper(bedroom[:1]) + bedroom[1:] + "\n"
+				}
+			}
+		}
+
+		if len(floors) > 0 {
+			text += "🏢 Floors:\n    - "
+			for k, floor := range floors {
+				if k != len(floors)-1 {
+					text += floorEncodings[floor] + ", "
+				} else {
+					text += floorEncodings[floor] + "\n"
+				}
+			}
+		}
+
+		// Print the url as an hyperlink
+		text += "\n🔗 <a href=\"" + url_string + "\">Link to the search</a>"
 
 		return text, nil
 	} else {
