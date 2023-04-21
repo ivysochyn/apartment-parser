@@ -54,10 +54,17 @@ func StartBot(debug bool) {
 		log.Println(err)
 	}
 
+	offers_db, err := database.OpenOffersDatabase("offers.db")
+	if err != nil {
+		log.Println(err)
+	}
+
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
 	updates := bot.GetUpdatesChan(u)
+
+	go parseOffers(bot, offers_db, search_db)
 
 	// Handle updates
 	for update := range updates {
