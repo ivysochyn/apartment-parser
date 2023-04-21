@@ -116,7 +116,7 @@ func displayAllSearchesToUser(bot *tgbotapi.BotAPI, userID int64, db *sql.DB) {
 		msg.Text = "🔍 You have " + strconv.Itoa(len(searches)) + " searches"
 
 		for _, search := range searches {
-			search_info, err := parser.GetSearchInfo(search.URL)
+			search_info, err := parser.GetSearchShortInfo(search.URL)
 			if err != nil {
 				log.Println(err)
 			} else {
@@ -159,7 +159,7 @@ func displayFullSearchInfo(bot *tgbotapi.BotAPI, userID int64, search_id_str str
 		return
 	}
 
-	search_info, err := parser.GetSearchInfo(search.URL)
+	search_info, err := parser.GetSearchFullInfo(search.URL)
 	if err != nil {
 		log.Println(err)
 		return
@@ -172,6 +172,8 @@ func displayFullSearchInfo(bot *tgbotapi.BotAPI, userID int64, search_id_str str
 			tgbotapi.NewInlineKeyboardButtonData("🗑️ Delete search", "search|remove_search|"+strconv.Itoa(int(search.ID))),
 		),
 	)
+	msg.ParseMode = "HTML"
+	msg.DisableWebPagePreview = true
 	sendMessage(bot, msg)
 }
 
