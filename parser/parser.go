@@ -5,6 +5,7 @@ package parser
 
 import (
 	"golang.org/x/net/html"
+	"log"
 	"strings"
 )
 
@@ -33,6 +34,7 @@ type Offer struct {
 	Rooms             string
 	Area              string
 	Floor             string
+	Images            []string
 }
 
 // Check if the given attribute is present in the given list of attributes.
@@ -149,19 +151,21 @@ func parseOlxOffer(offer Offer) Offer {
 					offer.Floor += data
 				}
 			}
-
 		case html.EndTagToken:
 			t := tkn.Token()
-			if t.Data == "div" {
-				if isDescription {
-					isDescription = false
-				}
-			} else if t.Data == "p" {
-				if isTag {
-					isTag = false
-				}
+			if t.Data == "div" && isDescription {
+				isDescription = false
+			} else if t.Data == "p" && isTag {
+				isTag = false
 			}
 
+		case html.SelfClosingTagToken:
+			t := tkn.Token()
+			if t.Data == "img" {
+				if checkAttr(t.Attr, "class", "css-1bmvjcs") {
+					offer.Images = append(offer.Images, getAttr(t.Attr, "src"))
+				}
+			}
 		}
 	}
 }
@@ -184,7 +188,8 @@ func parseOtodomOffer(offer Offer) Offer {
 
 	tkn := html.NewTokenizer(strings.NewReader(text))
 
-	var isArea, isRooms, isFloor, isAdditionalPayment, isDescription, isText bool
+	var isArea, isRooms, isFloor, isAdditionalPayment, isDescription, isText, isJson bool
+	var json string = ""
 	var deep_counter int
 
 	for {
@@ -225,6 +230,11 @@ func parseOtodomOffer(offer Offer) Offer {
 				} else if checkAttr(t.Attr, "class", "css-1wekrze e1lbnp621") {
 					isDescription = true
 				}
+			case "script":
+				isJson = checkAttr(t.Attr, "type", "application/json")
+				if isJson {
+					isText, isArea, isRooms, isFloor, isAdditionalPayment, isDescription = false, false, false, false, false, false
+				}
 			}
 
 		case html.TextToken:
@@ -241,6 +251,8 @@ func parseOtodomOffer(offer Offer) Offer {
 				} else if isAdditionalPayment {
 					offer.AdditionalPayment = string(tkn.Text())
 				}
+			} else if isJson {
+				json += string(tkn.Text())
 			}
 
 		case html.EndTagToken:
@@ -260,7 +272,12 @@ func parseOtodomOffer(offer Offer) Offer {
 						isDescription = false
 					}
 				}
-
+			} else if t.Data == "script" && isJson {
+				isJson = false
+				offer.Images, err = parseOtodomImages(json)
+				if err != nil {
+					log.Println(err)
+				}
 			}
 		}
 	}
