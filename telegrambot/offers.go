@@ -22,6 +22,46 @@ func sendOfferToUser(bot *tgbotapi.BotAPI, offer parser.Offer, UserId int64) {
 	msg := tgbotapi.NewMessage(UserId, message_string)
 	msg.ParseMode = "HTML"
 	msg.DisableWebPagePreview = false
+
+	var images []interface{} = make([]interface{}, 0)
+
+	// Download all the images and send them to user
+	if len(offer.Images) > 0 {
+		for _, image_url := range offer.Images {
+			var image []byte
+			image, err := parser.DownloadImage(image_url)
+			if err != nil {
+				panic(err)
+			}
+
+			images = append(images, tgbotapi.NewInputMediaPhoto(tgbotapi.FileBytes{Name: "image.jpg", Bytes: image}))
+		}
+	}
+
+	if len(images) > 1 {
+		// If there are more than 9 images, send only 9
+		if len(images) > 9 {
+			images = images[:9]
+		}
+		// Create a media group
+		media_group := tgbotapi.NewMediaGroup(UserId, images)
+		media_group_msg, err := bot.SendMediaGroup(media_group)
+		if err != nil {
+			panic(err)
+		}
+		// Add replyto message id to the first message
+		msg.ReplyToMessageID = media_group_msg[0].MessageID
+
+	} else if len(images) == 1 {
+		// Create a photo message
+		photo_msg := tgbotapi.NewPhoto(UserId, images[0].(tgbotapi.InputMediaPhoto).Media)
+		photo_msg_sent, err := bot.Send(photo_msg)
+		if err != nil {
+			panic(err)
+		}
+		// Add replyto message id to the first message
+		msg.ReplyToMessageID = photo_msg_sent.MessageID
+	}
 	sendMessage(bot, msg)
 }
 
