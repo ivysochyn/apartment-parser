@@ -3,6 +3,7 @@ package parser
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -203,4 +204,19 @@ func GetSearchFullInfo(url_string string) (string, error) {
 	} else {
 		return "", errors.New("Invalid URL")
 	}
+}
+
+func DownloadImage(image_url string) ([]byte, error) {
+	resp, err := http.Get(image_url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	imageData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return imageData, nil
 }
