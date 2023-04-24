@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -219,4 +220,26 @@ func DownloadImage(image_url string) ([]byte, error) {
 	}
 
 	return imageData, nil
+}
+
+func parseOtodomImages(json_string string) ([]string, error) {
+	var images []string
+
+	// Create a new JSON decoder
+	decoder := json.NewDecoder(strings.NewReader(json_string))
+
+	// Decode the JSON
+	var data map[string]interface{}
+	err := decoder.Decode(&data)
+	if err != nil {
+		return nil, err
+	}
+
+	// Images are stored under "props" -> "pageProps" -> "ad" -> "images"
+	images_data := data["props"].(map[string]interface{})["pageProps"].(map[string]interface{})["ad"].(map[string]interface{})["images"].([]interface{})
+	for _, image := range images_data {
+		images = append(images, image.(map[string]interface{})["large"].(string))
+	}
+
+	return images, nil
 }
