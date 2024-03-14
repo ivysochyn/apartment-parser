@@ -1,4 +1,5 @@
 # ApartiBot - Your personal apartment search assistant
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 
 ApartiBot is a Telegram bot that aggregates apartment listings from different sources and sends them to you.
 The bot is currently in development and only supports the following sources:
