@@ -40,6 +40,19 @@ type City struct {
 //	bot: Telegram bot instance.
 //	update: Update message to remove.
 func removeUpdateQueryMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
+	// If the message has reply markup, remove that message first
+	if update.CallbackQuery.Message.ReplyMarkup != nil {
+		// Check if previous message is a media group
+		if update.CallbackQuery.Message.ReplyToMessage != nil && update.CallbackQuery.Message.ReplyToMessage.MediaGroupID != "" {
+			// Remove all the messages in between
+			start_id := update.CallbackQuery.Message.ReplyToMessage.MessageID
+			end_id := update.CallbackQuery.Message.MessageID - 1
+			for i := start_id; i <= end_id; i++ {
+				deleteMediaGroup := tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, i)
+				sendDeleteMessage(bot, deleteMediaGroup)
+			}
+		}
+	}
 	deleteMessage := tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID)
 	sendDeleteMessage(bot, deleteMessage)
 }
@@ -62,8 +75,8 @@ func removeUpdateMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 //	bot: Telegram bot instance.
 //	update: Update message to use as a relative point.
 //	relativeMessageID: Amount of messages back to move from the update message.
-func removeUpdateMessageRelative(bot *tgbotapi.BotAPI, update tgbotapi.Update, relativeMessageID int) {
-	deleteMessage := tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID-relativeMessageID)
+func removeUpdateMessageRelative(bot *tgbotapi.BotAPI, message *tgbotapi.Message, relativeMessageID int) {
+	deleteMessage := tgbotapi.NewDeleteMessage(message.Chat.ID, message.MessageID-relativeMessageID)
 	sendDeleteMessage(bot, deleteMessage)
 }
 
@@ -86,7 +99,7 @@ func sendMessage(bot *tgbotapi.BotAPI, msg tgbotapi.MessageConfig) {
 //
 //	bot: Telegram bot instance.
 //	msg: DeleteMessageConfig to send.
-func sendDeleteMessage(bot *tgbotapi.BotAPI, msg tgbotapi.DeleteMessageConfig) {
+func sendDeleteMessage(bot *tgbotapi.BotAPI, msg tgbotapi.Chattable) {
 	_, err := bot.Send(msg)
 	if err != nil {
 		log.Println(err)

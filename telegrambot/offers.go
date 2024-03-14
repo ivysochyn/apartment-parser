@@ -64,6 +64,12 @@ func sendOfferToUser(bot *tgbotapi.BotAPI, offer parser.Offer, UserId int64) {
 		// Add replyto message id to the first message
 		msg.ReplyToMessageID = photo_msg_sent.MessageID
 	}
+
+	reply_markup := tgbotapi.NewInlineKeyboardMarkup()
+	reply_markup.InlineKeyboard = append(reply_markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("🗑️ Remove", "remove_msg|"),
+	))
+	msg.ReplyMarkup = reply_markup
 	sendMessage(bot, msg)
 }
 
