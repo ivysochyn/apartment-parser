@@ -226,7 +226,7 @@ func newSearchProcessPrice(bot *tgbotapi.BotAPI, update tgbotapi.Update, db *sql
 		delete(userStates, update.Message.Chat.ID)
 
 		// Remove the previous message and display all searches again
-		removeUpdateMessageRelative(bot, update, 1)
+		removeUpdateMessageRelative(bot, update.Message, 1)
 		displayAllSearchesToUser(bot, update.Message.Chat.ID, db)
 		return
 	}
@@ -247,7 +247,7 @@ func newSearchProcessPrice(bot *tgbotapi.BotAPI, update tgbotapi.Update, db *sql
 		delete(userStates, update.Message.Chat.ID)
 
 		// Remove the previous message and display all searches again
-		removeUpdateMessageRelative(bot, update, 1)
+		removeUpdateMessageRelative(bot, update.Message, 1)
 		displayAllSearchesToUser(bot, update.Message.Chat.ID, db)
 		return
 	}
@@ -266,6 +266,6 @@ func newSearchProcessPrice(bot *tgbotapi.BotAPI, update tgbotapi.Update, db *sql
 	delete(userStates, update.Message.Chat.ID)
 
 	// Remove the last bot's message
-	removeUpdateMessageRelative(bot, update, 1)
+	removeUpdateMessageRelative(bot, update.Message, 1)
 	displayAllSearchesToUser(bot, update.Message.Chat.ID, db)
 }
