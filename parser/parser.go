@@ -108,6 +108,7 @@ func parseOlxOffer(offer Offer) Offer {
 	text, err := FetchHTMLPage(offer.Url)
 
 	if err != nil {
+		log.Printf("Error fetching the OLX page: %v", err)
 		return offer
 	}
 
@@ -183,6 +184,7 @@ func parseOtodomOffer(offer Offer) Offer {
 	text, err := FetchHTMLPage(offer.Url)
 
 	if err != nil {
+		log.Printf("Error fetching the Otodom page: %v", err)
 		return offer
 	}
 
