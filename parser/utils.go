@@ -49,10 +49,10 @@ func FetchHTMLPage(url_string string) (string, error) {
 	req.Header.Set("TZ", "Europe/Warsaw")
 
 	client := &http.Client{}
-	resp, err := client.Do(req);
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
-	} else if (resp.StatusCode != 200) {
+	} else if resp.StatusCode != 200 {
 		return "", errors.New("Status code: " + strconv.Itoa(resp.StatusCode))
 	}
 

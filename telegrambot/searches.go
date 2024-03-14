@@ -20,7 +20,7 @@ import (
 //	bot: Telegram bot instance.
 //	update: Telegram update.
 //	db: Database instance of the search database.
-func processSeachAction(bot *tgbotapi.BotAPI, update tgbotapi.Update, db *sql.DB) {
+func processSearchAction(bot *tgbotapi.BotAPI, update tgbotapi.Update, db *sql.DB) {
 	data := strings.Split(update.CallbackQuery.Data, "|")
 	switch data[1] {
 

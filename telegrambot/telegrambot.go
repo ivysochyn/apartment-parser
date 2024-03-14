@@ -3,9 +3,9 @@ package telegrambot
 import (
 	"apartment-parser/database"
 
+	"errors"
 	"log"
 	"os"
-	"errors"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
