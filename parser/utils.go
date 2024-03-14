@@ -5,14 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 )
 
-// Stuct to hold the search term.
+// Struct to hold the search term.
 // The search term is the parameters that are used to search for a property.
 // For example, a search term could be:
 //   - location: "Stockholm"
@@ -48,7 +47,7 @@ func FetchHTMLPage(url_string string) (string, error) {
 
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
