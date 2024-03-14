@@ -5,6 +5,7 @@ import (
 
 	"log"
 	"os"
+	"errors"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -30,7 +31,14 @@ var keyboard = tgbotapi.NewReplyKeyboard(
 //	bot: A pointer to the bot object.
 //	err: An error if the bot could not be created.
 func createBot(debug bool) (*tgbotapi.BotAPI, error) {
-	bot, err := tgbotapi.NewBotAPI(os.Getenv("TELEGRAM_APITOKEN"))
+	var api_token = (os.Getenv("TELEGRAM_APITOKEN"))
+	if api_token == "" {
+		return nil, errors.New("TELEGRAM_APITOKEN environment variable not set")
+	}
+	bot, err := tgbotapi.NewBotAPI(api_token)
+	if err != nil {
+		return nil, err
+	}
 	bot.Debug = debug
 	return bot, err
 }

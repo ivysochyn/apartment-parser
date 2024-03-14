@@ -6,6 +6,8 @@ import (
 
 	"database/sql"
 	"time"
+	"strings"
+	"log"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -112,7 +114,6 @@ func parseOffers(bot *tgbotapi.BotAPI, offers_db *sql.DB, search_db *sql.DB) {
 
 		for _, search := range searches {
 			processAllOffersFromSearch(bot, search, offers_db)
-			time.Sleep(10 * time.Second)
 		}
 	}
 }
@@ -127,7 +128,8 @@ func parseOffers(bot *tgbotapi.BotAPI, offers_db *sql.DB, search_db *sql.DB) {
 func processAllOffersFromSearch(bot *tgbotapi.BotAPI, search database.Search, offers_db *sql.DB) {
 	page, err := parser.FetchHTMLPage(search.URL)
 	if err != nil {
-		panic(err)
+		log.Printf("Error fetching page: %v", err)
+		return
 	}
 
 	offers := parser.ParseHtml(page)
@@ -135,20 +137,22 @@ func processAllOffersFromSearch(bot *tgbotapi.BotAPI, search database.Search, of
 	for _, offer := range offers {
 		exists, err := database.OfferExists(offers_db, offer, search.UserID)
 		if err != nil {
-			panic(err)
+			log.Printf("Error checking if offer exists: %v", err)
+			return
 		}
 		if !exists {
 			offer = parser.ParseOffer(offer)
 			err := database.AddOffer(offers_db, offer, search.UserID)
 			if err != nil {
-				panic(err)
+				log.Printf("Error adding offer to database: %v", err)
+				return
 			}
 
-			// TODO: Refactor this
 			// if has 'Dzisiaj' in time as a first word, send offer
-			if len(offer.Time) > 7 && offer.Time[:7] == "Dzisiaj" {
+			if (strings.Contains(offer.Time, "Dzisiaj")) {
 				sendOfferToUser(bot, offer, search.UserID)
 			}
+			time.Sleep(1 * time.Second)
 		}
 	}
 }
