@@ -1,0 +1,11 @@
+repos:
+-   repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+    -   id: go-fmt
+    -   id: go-vet
+    -   id: go-mod-tidy
+-   repo: https://github.com/crate-ci/typos
+    rev: v1.19.0
+    hooks:
+    -   id: typos
