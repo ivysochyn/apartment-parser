@@ -5,9 +5,9 @@ import (
 	"apartment-parser/parser"
 
 	"database/sql"
-	"time"
-	"strings"
 	"log"
+	"strings"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -148,8 +148,8 @@ func processAllOffersFromSearch(bot *tgbotapi.BotAPI, search database.Search, of
 				return
 			}
 
-			// if has 'Dzisiaj' in time as a first word, send offer
-			if (strings.Contains(offer.Time, "Dzisiaj")) {
+			// if has 'Dzisiaj' in time and images, send offer
+			if strings.Contains(offer.Time, "Dzisiaj") && len(offer.Images) > 0 {
 				sendOfferToUser(bot, offer, search.UserID)
 			}
 			time.Sleep(5 * time.Second)

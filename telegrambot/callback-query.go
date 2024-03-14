@@ -25,7 +25,7 @@ func processCallbackQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, search_d
 		return
 
 	case "search":
-		processSeachAction(bot, update, search_db)
+		processSearchAction(bot, update, search_db)
 
 	default:
 		log.Println("Unknown callback query data: ", data[0])
