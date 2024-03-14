@@ -127,7 +127,7 @@ func parseOlxOffer(offer Offer) Offer {
 			t := tkn.Token()
 			switch t.Data {
 			case "div":
-				isDescription = checkAttr(t.Attr, "class", "css-bgzo2k er34gjf0")
+				isDescription = checkAttr(t.Attr, "class", "css-1t507yq er34gjf0")
 			case "p":
 				isTag = checkAttr(t.Attr, "class", "css-b5m1rv er34gjf0")
 			}
@@ -315,7 +315,7 @@ func extractOffer(text string) Offer {
 				isTitle = true
 			case "p":
 				isPrice = checkAttr(t.Attr, "class", "css-10b0gli er34gjf0")
-				isTimeAndLoc = checkAttr(t.Attr, "class", "css-veheph er34gjf0")
+				isTimeAndLoc = checkAttr(t.Attr, "class", "css-1a4brun er34gjf0")
 			case "a":
 				offer.Url = getAttr(t.Attr, "href")
 				if offer.Url[0] == '/' {
