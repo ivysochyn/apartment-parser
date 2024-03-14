@@ -213,10 +213,12 @@ func parseOtodomOffer(offer Offer) Offer {
 					isAdditionalPayment = true
 				case "table-value-area":
 					isArea = true
+				case "table-value-rooms_num":
+					isRooms = true
 				}
 				isDescription = getAttr(t.Attr, "data-cy") == "adPageAdDescription"
 			case "a":
-				isRooms = getAttr(t.Attr, "data-cy") != ""
+				isRooms = getAttr(t.Attr, "data-cy") == "ad-information-link"
 			case "script":
 				isJson = checkAttr(t.Attr, "type", "application/json")
 			}
