@@ -152,7 +152,7 @@ func processAllOffersFromSearch(bot *tgbotapi.BotAPI, search database.Search, of
 			if (strings.Contains(offer.Time, "Dzisiaj")) {
 				sendOfferToUser(bot, offer, search.UserID)
 			}
-			time.Sleep(1 * time.Second)
+			time.Sleep(5 * time.Second)
 		}
 	}
 }

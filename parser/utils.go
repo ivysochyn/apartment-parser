@@ -40,9 +40,20 @@ type SearchTerm struct {
 //	    // handle error
 //	}
 func FetchHTMLPage(url_string string) (string, error) {
-	resp, err := http.Get(url_string)
+	req, err := http.NewRequest("GET", url_string, nil)
 	if err != nil {
 		return "", err
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0")
+	req.Header.Set("Accept", "text/html")
+	req.Header.Set("TZ", "Europe/Warsaw")
+
+	client := &http.Client{}
+	resp, err := client.Do(req);
+	if err != nil {
+		return "", err
+	} else if (resp.StatusCode != 200) {
+		return "", errors.New("Status code: " + strconv.Itoa(resp.StatusCode))
 	}
 
 	defer resp.Body.Close()
