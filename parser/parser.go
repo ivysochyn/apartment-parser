@@ -190,9 +190,8 @@ func parseOtodomOffer(offer Offer) Offer {
 
 	tkn := html.NewTokenizer(strings.NewReader(text))
 
-	var isArea, isRooms, isFloor, isAdditionalPayment, isDescription, isText, isJson bool
+	var isRooms, isDescription, isArea, isFloor, isAdditionalPayment, isJson bool
 	var json string = ""
-	var deep_counter int
 
 	for {
 		tt := tkn.Next()
@@ -205,82 +204,60 @@ func parseOtodomOffer(offer Offer) Offer {
 			t := tkn.Token()
 			switch t.Data {
 			case "div":
-				deep_counter++
-				if checkAttr(t.Attr, "class", "css-kkaknb enb64yk0") {
-					// Get the 'aria-label' attribute
-					ariaLabel := getAttr(t.Attr, "aria-label")
-					switch ariaLabel {
-					case "Powierzchnia":
-						isArea = true
-						isText, isRooms, isFloor, isAdditionalPayment, isDescription = false, false, false, false, false
-						deep_counter = 1
-					case "Liczba pokoi":
-						isRooms = true
-						isText, isArea, isFloor, isAdditionalPayment, isDescription = false, false, false, false, false
-						deep_counter = 1
-					case "Piętro":
-						isFloor = true
-						isText, isArea, isRooms, isAdditionalPayment, isDescription = false, false, false, false, false
-						deep_counter = 1
-					case "Czynsz":
-						isAdditionalPayment = true
-						isText, isArea, isRooms, isFloor, isDescription = false, false, false, false, false
-						deep_counter = 1
-					}
-				} else if checkAttr(t.Attr, "class", "css-1wi2w6s enb64yk4") {
-					isText = true
-				} else if checkAttr(t.Attr, "class", "css-1wekrze e1lbnp621") {
-					isDescription = true
+				// Tags
+				dataid := getAttr(t.Attr, "data-testid")
+				switch dataid {
+				case "table-value-floor":
+					isFloor = true
+				case "table-value-rent":
+					isAdditionalPayment = true
+				case "table-value-area":
+					isArea = true
 				}
+				isDescription = getAttr(t.Attr, "data-cy") == "adPageAdDescription"
+			case "a":
+				isRooms = getAttr(t.Attr, "data-cy") != ""
 			case "script":
 				isJson = checkAttr(t.Attr, "type", "application/json")
-				if isJson {
-					isText, isArea, isRooms, isFloor, isAdditionalPayment, isDescription = false, false, false, false, false, false
-				}
 			}
 
 		case html.TextToken:
-			if isText {
-				if isArea {
-					offer.Area = string(tkn.Text())
+			if isArea {
+				offer.Area = string(tkn.Text())
+				isArea = false
+			} else if isFloor {
+				offer.Floor = string(tkn.Text())
+				isFloor = false
+			} else if isAdditionalPayment {
+				offer.AdditionalPayment = string(tkn.Text())
+				isAdditionalPayment = false
+			} else if isRooms {
+				offer.Rooms = string(tkn.Text())
+				isRooms = false
+			} else if isDescription {
+				offer.Description += string(tkn.Text()) + "\n"
+			}
 
-				} else if isRooms {
-					offer.Rooms = string(tkn.Text())
-
-				} else if isFloor {
-					offer.Floor = string(tkn.Text())
-
-				} else if isAdditionalPayment {
-					offer.AdditionalPayment = string(tkn.Text())
-				}
-			} else if isJson {
+			if isJson {
 				json += string(tkn.Text())
 			}
 
 		case html.EndTagToken:
 			t := tkn.Token()
-			if t.Data == "div" {
-				deep_counter--
-				if deep_counter == 0 {
-					if isArea {
-						isArea = false
-					} else if isRooms {
-						isRooms = false
-					} else if isFloor {
-						isFloor = false
-					} else if isAdditionalPayment {
-						isAdditionalPayment = false
-					} else if isDescription {
-						isDescription = false
-					}
-				}
-			} else if t.Data == "script" && isJson {
+			if t.Data == "script" && isJson {
 				isJson = false
 				offer.Images, err = parseOtodomImages(json)
 				if err != nil {
 					log.Println(err)
 				}
+			} else if t.Data == "div" && isDescription {
+				isDescription = false
+				// Strip the last newline character if present
+				if len(offer.Description) > 0 {
+					offer.Description = offer.Description[:len(offer.Description)-1]
+				}
 			}
+
 		}
 	}
 }
