@@ -6,7 +6,9 @@ package parser
 import (
 	"golang.org/x/net/html"
 	"log"
+	"regexp"
 	"strings"
+	"time"
 )
 
 // Offer of an apartment for rent.
@@ -322,7 +324,20 @@ func extractOffer(text string) Offer {
 				for i := 0; i < 4; i++ {
 					tkn.Next()
 				}
-				offer.Time = tkn.Token().Data
+				// Exit if the date is not today
+				date_str := tkn.Token().Data
+				if !strings.Contains(date_str, "Dzisiaj") {
+					return Offer{}
+				}
+				// Convert the time_str from UTC to the GTM+1 timezone
+				re_time := regexp.MustCompile(`\d{2}:\d{2}`)
+				t, err := time.Parse("15:04", re_time.FindString(date_str))
+				if err != nil {
+					log.Println(err)
+					return Offer{}
+				}
+				t = t.Add(time.Hour)
+				offer.Time = t.Format("15:04")
 				isTimeAndLoc = false
 			}
 		}
