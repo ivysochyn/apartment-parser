@@ -6,7 +6,6 @@ import (
 
 	"database/sql"
 	"log"
-	"strings"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -100,7 +99,7 @@ func offerToText(offer parser.Offer) string {
 		text += "🏢 " + offer.Floor + "\n"
 	}
 
-	text += "\n📅 " + offer.Time + "\n"
+	text += "\n📅 Dzisiaj o " + offer.Time + "\n"
 	return text
 }
 
@@ -155,7 +154,7 @@ func processAllOffersFromSearch(bot *tgbotapi.BotAPI, search database.Search, of
 			}
 
 			// if has 'Dzisiaj' in time and images, send offer
-			if strings.Contains(offer.Time, "Dzisiaj") && len(offer.Images) > 0 {
+			if len(offer.Images) > 0 {
 				sendOfferToUser(bot, offer, search.UserID)
 			}
 			time.Sleep(5 * time.Second)
