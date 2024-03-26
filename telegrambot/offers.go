@@ -6,6 +6,7 @@ import (
 
 	"database/sql"
 	"log"
+	"strconv"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -84,11 +85,12 @@ func sendOfferToUser(bot *tgbotapi.BotAPI, offer parser.Offer, UserId int64) {
 func offerToText(offer parser.Offer) string {
 	text := "<a href=\"" + offer.Url + "\">" + offer.Title + "</a>\n\n"
 	text += "📍 " + offer.Location + "\n"
-	text += "💵 " + offer.Price + "\n"
-
-	if offer.AdditionalPayment != "" {
-		text += "📝 " + offer.AdditionalPayment + "\n"
+	text += "💵 " + strconv.Itoa(offer.Price+offer.AdditionalPayment) + " zł"
+	if offer.AdditionalPayment != 0 {
+		text += " (" + strconv.Itoa(offer.Price) + " + " + strconv.Itoa(offer.AdditionalPayment) + ")"
 	}
+	text += "\n"
+
 	if offer.Area != "" {
 		text += "📐 " + offer.Area + "\n"
 	}

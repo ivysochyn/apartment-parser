@@ -7,6 +7,7 @@ import (
 	"golang.org/x/net/html"
 	"log"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -27,11 +28,11 @@ import (
 //	Floor: The floor of the offer.
 type Offer struct {
 	Title             string
-	Price             string
+	Price             int
 	Location          string
 	Time              string
 	Url               string
-	AdditionalPayment string
+	AdditionalPayment int
 	Description       string
 	Rooms             string
 	Area              string
@@ -141,8 +142,15 @@ func parseOlxOffer(offer Offer) Offer {
 			} else if isTag {
 				data := string(tkn.Text())
 				if strings.HasPrefix(data, "Czynsz") {
-					// TODO: Extract the additional payment and convert it to a number
-					offer.AdditionalPayment = data
+					data = strings.ReplaceAll(data, " ", "")
+					data = regexp.MustCompile(`\d+`).FindString(data)
+					if data == "" {
+						offer.AdditionalPayment = 0
+					}
+					offer.AdditionalPayment, err = strconv.Atoi(data)
+					if err != nil {
+						offer.AdditionalPayment = 0
+					}
 				} else if strings.HasPrefix(data, "Liczba pokoi") {
 					// TODO: Extract the number of rooms and convert it to a number
 					offer.Rooms += data
@@ -233,7 +241,16 @@ func parseOtodomOffer(offer Offer) Offer {
 				offer.Floor = string(tkn.Text())
 				isFloor = false
 			} else if isAdditionalPayment {
-				offer.AdditionalPayment = string(tkn.Text())
+				data := string(tkn.Text())
+				data = strings.ReplaceAll(data, " ", "")
+				data = regexp.MustCompile(`\d+`).FindString(data)
+				if data == "" {
+					offer.AdditionalPayment = 0
+				}
+				offer.AdditionalPayment, err = strconv.Atoi(data)
+				if err != nil {
+					offer.AdditionalPayment = 0
+				}
 				isAdditionalPayment = false
 			} else if isRooms {
 				offer.Rooms = string(tkn.Text())
@@ -317,7 +334,17 @@ func extractOffer(text string) Offer {
 				offer.Title = t.Data
 				isTitle = false
 			} else if isPrice {
-				offer.Price = t.Data
+				data := t.Data
+				data = strings.ReplaceAll(data, " ", "")
+				data = regexp.MustCompile(`\d+`).FindString(data)
+				if data == "" {
+					offer.Price = 0
+				}
+				var err error
+				offer.Price, err = strconv.Atoi(data)
+				if err != nil {
+					offer.Price = 0
+				}
 				isPrice = false
 			} else if isTimeAndLoc {
 				offer.Location = t.Data
