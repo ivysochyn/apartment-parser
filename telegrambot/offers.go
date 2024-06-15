@@ -143,7 +143,7 @@ func processAllOffersFromSearch(bot *tgbotapi.BotAPI, search database.Search, of
 	offers := parser.ParseHtml(page)
 
 	for _, offer := range offers {
-		search_exists, err := database.SearchExists(search_db, search)
+		search_exists, _ := database.SearchExists(search_db, search)
 		if !search_exists {
 			return
 		}
