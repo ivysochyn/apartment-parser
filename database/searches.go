@@ -178,3 +178,13 @@ func GetAllSearches(db *sql.DB) ([]Search, error) {
 
 	return searches, nil
 }
+
+func SearchExists(db *sql.DB, search Search) (bool, error) {
+	var exists bool
+	// if search with the same url exists
+	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM searches WHERE UserID = ? AND url = ?)", search.UserID, search.URL).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}

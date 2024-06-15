@@ -120,7 +120,7 @@ func parseOffers(bot *tgbotapi.BotAPI, offers_db *sql.DB, search_db *sql.DB) {
 		}
 
 		for _, search := range searches {
-			processAllOffersFromSearch(bot, search, offers_db)
+			processAllOffersFromSearch(bot, search, offers_db, search_db)
 		}
 	}
 }
@@ -129,10 +129,11 @@ func parseOffers(bot *tgbotapi.BotAPI, offers_db *sql.DB, search_db *sql.DB) {
 //
 // Parameters:
 //
-//	bot: Telegram bot instance.
-//	search: Search to parse offers from.
-//	offers_db: Database with offers.
-func processAllOffersFromSearch(bot *tgbotapi.BotAPI, search database.Search, offers_db *sql.DB) {
+//		bot: Telegram bot instance.
+//		search: Search to parse offers from.
+//		offers_db: Database with offers.
+//	 search_db: Database with searches.
+func processAllOffersFromSearch(bot *tgbotapi.BotAPI, search database.Search, offers_db *sql.DB, search_db *sql.DB) {
 	page, err := parser.FetchHTMLPage(search.URL)
 	if err != nil {
 		log.Printf("Error fetching page: %v", err)
@@ -142,6 +143,11 @@ func processAllOffersFromSearch(bot *tgbotapi.BotAPI, search database.Search, of
 	offers := parser.ParseHtml(page)
 
 	for _, offer := range offers {
+		search_exists, err := database.SearchExists(search_db, search)
+		if !search_exists {
+			return
+		}
+
 		exists, err := database.OfferExists(offers_db, offer, search.UserID)
 		if err != nil {
 			log.Printf("Error checking if offer exists: %v", err)
