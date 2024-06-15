@@ -200,7 +200,7 @@ func parseOtodomOffer(offer Offer) Offer {
 
 	tkn := html.NewTokenizer(strings.NewReader(text))
 
-	var isRooms, isDescription, isArea, isFloor, isAdditionalPayment, isJson bool
+	var isRooms, isDescription, isArea, isFloor, isAdditionalPayment, isJson, isContent bool
 	var json string = ""
 
 	for {
@@ -215,18 +215,19 @@ func parseOtodomOffer(offer Offer) Offer {
 			switch t.Data {
 			case "div":
 				// Tags
-				dataid := getAttr(t.Attr, "data-testid")
+				dataid := getAttr(t.Attr, "aria-label")
 				switch dataid {
-				case "table-value-floor":
+				case "Piętro":
 					isFloor = true
-				case "table-value-rent":
+				case "Czynsz":
 					isAdditionalPayment = true
-				case "table-value-area":
+				case "Powierzchnia":
 					isArea = true
-				case "table-value-rooms_num":
+				case "Liczba pokoi":
 					isRooms = true
 				}
 				isDescription = getAttr(t.Attr, "data-cy") == "adPageAdDescription"
+				isContent = getAttr(t.Attr, "class") == "css-1wi2w6s e26jmad5"
 			case "a":
 				isRooms = getAttr(t.Attr, "data-cy") == "ad-information-link"
 			case "script":
@@ -234,29 +235,31 @@ func parseOtodomOffer(offer Offer) Offer {
 			}
 
 		case html.TextToken:
-			if isArea {
-				offer.Area = string(tkn.Text())
-				isArea = false
-			} else if isFloor {
-				offer.Floor = string(tkn.Text())
-				isFloor = false
-			} else if isAdditionalPayment {
-				data := string(tkn.Text())
-				data = strings.ReplaceAll(data, " ", "")
-				data = regexp.MustCompile(`\d+`).FindString(data)
-				if data == "" {
-					offer.AdditionalPayment = 0
+			if isContent {
+				if isArea {
+					offer.Area = string(tkn.Text())
+					isArea = false
+				} else if isFloor {
+					offer.Floor = string(tkn.Text())
+					isFloor = false
+				} else if isAdditionalPayment {
+					data := string(tkn.Text())
+					data = strings.ReplaceAll(data, " ", "")
+					data = regexp.MustCompile(`\d+`).FindString(data)
+					if data == "" {
+						offer.AdditionalPayment = 0
+					}
+					offer.AdditionalPayment, err = strconv.Atoi(data)
+					if err != nil {
+						offer.AdditionalPayment = 0
+					}
+					isAdditionalPayment = false
+				} else if isRooms {
+					offer.Rooms = string(tkn.Text())
+					isRooms = false
+				} else if isDescription {
+					offer.Description += string(tkn.Text()) + "\n"
 				}
-				offer.AdditionalPayment, err = strconv.Atoi(data)
-				if err != nil {
-					offer.AdditionalPayment = 0
-				}
-				isAdditionalPayment = false
-			} else if isRooms {
-				offer.Rooms = string(tkn.Text())
-				isRooms = false
-			} else if isDescription {
-				offer.Description += string(tkn.Text()) + "\n"
 			}
 
 			if isJson {
@@ -314,7 +317,7 @@ func extractOffer(text string) Offer {
 			case "h6":
 				isTitle = true
 			case "p":
-				isPrice = checkAttr(t.Attr, "class", "css-10b0gli er34gjf0")
+				isPrice = checkAttr(t.Attr, "class", "css-tyui9s er34gjf0")
 				isTimeAndLoc = checkAttr(t.Attr, "class", "css-1a4brun er34gjf0")
 			case "a":
 				offer.Url = getAttr(t.Attr, "href")
