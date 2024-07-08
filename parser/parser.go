@@ -131,9 +131,9 @@ func parseOlxOffer(offer Offer) Offer {
 			t := tkn.Token()
 			switch t.Data {
 			case "div":
-				isDescription = checkAttr(t.Attr, "class", "css-1t507yq er34gjf0")
+				isDescription = checkAttr(t.Attr, "class", "css-1t507yq")
 			case "p":
-				isTag = checkAttr(t.Attr, "class", "css-b5m1rv er34gjf0")
+				isTag = checkAttr(t.Attr, "class", "css-b5m1rv")
 			}
 
 		case html.TextToken:
@@ -227,7 +227,7 @@ func parseOtodomOffer(offer Offer) Offer {
 					isRooms = true
 				}
 				isDescription = getAttr(t.Attr, "data-cy") == "adPageAdDescription"
-				isContent = getAttr(t.Attr, "class") == "css-1wi2w6s e26jmad5"
+				isContent = getAttr(t.Attr, "class") == "css-1wi2w6s ewb0mtf5"
 			case "a":
 				isRooms = getAttr(t.Attr, "data-cy") == "ad-information-link"
 			case "script":
@@ -237,10 +237,10 @@ func parseOtodomOffer(offer Offer) Offer {
 		case html.TextToken:
 			if isContent {
 				if isArea {
-					offer.Area = string(tkn.Text())
+					offer.Area = "Powierzchnia: " + string(tkn.Text())
 					isArea = false
 				} else if isFloor {
-					offer.Floor = string(tkn.Text())
+					offer.Floor = "Poziom: " + string(tkn.Text())
 					isFloor = false
 				} else if isAdditionalPayment {
 					data := string(tkn.Text())
@@ -255,7 +255,7 @@ func parseOtodomOffer(offer Offer) Offer {
 					}
 					isAdditionalPayment = false
 				} else if isRooms {
-					offer.Rooms = string(tkn.Text())
+					offer.Rooms = "Liczba pokoi: " + string(tkn.Text())
 					isRooms = false
 				} else if isDescription {
 					offer.Description += string(tkn.Text()) + "\n"
@@ -317,8 +317,8 @@ func extractOffer(text string) Offer {
 			case "h6":
 				isTitle = true
 			case "p":
-				isPrice = checkAttr(t.Attr, "class", "css-tyui9s er34gjf0")
-				isTimeAndLoc = checkAttr(t.Attr, "class", "css-1a4brun er34gjf0")
+				isPrice = checkAttr(t.Attr, "class", "css-13afqrm")
+				isTimeAndLoc = checkAttr(t.Attr, "class", "css-1mwdrlh")
 			case "a":
 				offer.Url = getAttr(t.Attr, "href")
 				if offer.Url[0] == '/' {
@@ -366,6 +366,7 @@ func extractOffer(text string) Offer {
 					log.Println(err)
 					return Offer{}
 				}
+				t = t.Add(time.Hour)
 				t = t.Add(time.Hour)
 				offer.Time = t.Format("15:04")
 				isTimeAndLoc = false
