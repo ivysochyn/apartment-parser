@@ -4,12 +4,13 @@
 package parser
 
 import (
-	"golang.org/x/net/html"
 	"log"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/net/html"
 )
 
 // Offer of an apartment for rent.
@@ -38,6 +39,60 @@ type Offer struct {
 	Area              string
 	Floor             string
 	Images            []string
+}
+
+// ExtractorConfig holds configuration for the offer extractor
+type ExtractorConfig struct {
+	// Selectors for finding elements
+	TitleSelector      Selector
+	PriceSelector      Selector
+	LocationSelector   Selector
+	URLSelector        Selector
+
+	// Parsing configuration
+	DatePattern        *regexp.Regexp
+	TimePattern        *regexp.Regexp
+	PricePattern       *regexp.Regexp
+	TodayKeyword       string
+	BaseURL            string
+	TimezoneOffset     time.Duration
+}
+
+// Selector represents how to find an element
+type Selector struct {
+	Tag       string
+	Attribute string
+	Value     string
+}
+
+// Default configuration for OLX
+var OLXConfig = ExtractorConfig{
+	TitleSelector: Selector{
+		Tag:       "h4",  // More stable than h6
+		Attribute: "",
+		Value:     "",
+	},
+	PriceSelector: Selector{
+		Tag:       "p",
+		Attribute: "data-testid",
+		Value:     "ad-price",
+	},
+	LocationSelector: Selector{
+		Tag:       "p",
+		Attribute: "data-testid",
+		Value:     "location-date",
+	},
+	URLSelector: Selector{
+		Tag:       "a",
+		Attribute: "href",
+		Value:     "",
+	},
+	DatePattern:    regexp.MustCompile(`\d{1,2}\s+\w+\s+\d{4}`),
+	TimePattern:    regexp.MustCompile(`\d{2}:\d{2}`),
+	PricePattern:   regexp.MustCompile(`\d+`),
+	TodayKeyword:   "Dzisiaj",
+	BaseURL:        "https://www.olx.pl",
+	TimezoneOffset: 2 * time.Hour, // Poland is UTC+2
 }
 
 // Check if the given attribute is present in the given list of attributes.
@@ -296,83 +351,170 @@ func parseOtodomOffer(offer Offer) Offer {
 //
 //	The offer extracted from the block of code.
 func extractOffer(text string) Offer {
-	tkn := html.NewTokenizer(strings.NewReader(text))
+	return extractOfferWithConfig(text, OLXConfig)
+}
 
+func extractOfferWithConfig(text string, config ExtractorConfig) Offer {
+	tkn := html.NewTokenizer(strings.NewReader(text))
 	offer := Offer{}
-	var isTitle bool
-	var isPrice bool
-	var isTimeAndLoc bool
+
+	if strings.Contains(text, "Wyróżnione") {
+		log.Println("[DEBUG] Skipping featured ad (Wyróżnione found)")
+		return Offer{}
+	}
+
+	// State tracking
+	var currentContext string
+	var isInLink bool
+	var depth int
+
 	for {
 		tt := tkn.Next()
 		switch tt {
 		case html.ErrorToken:
-			// End of the document, we're done
 			if offer.Url == "" {
 				return Offer{}
 			}
 			return offer
+
 		case html.StartTagToken:
 			t := tkn.Token()
-			switch t.Data {
-			case "h6":
-				isTitle = true
-			case "p":
-				isPrice = checkAttr(t.Attr, "class", "css-13afqrm")
-				isTimeAndLoc = checkAttr(t.Attr, "class", "css-1mwdrlh")
-			case "a":
-				offer.Url = getAttr(t.Attr, "href")
-				if offer.Url[0] == '/' {
-					offer.Url = "https://www.olx.pl" + offer.Url
-				}
-			case "div":
-				// Check if the offer is featured
-				if checkAttr(t.Attr, "data-testid", "adCard-featured") {
-					return Offer{}
+
+			// Track if we're inside a link
+			if t.Data == "a" {
+				isInLink = true
+				// Extract URL
+				if url := getAttr(t.Attr, "href"); url != "" && offer.Url == "" {
+					offer.Url = normalizeURL(url, config.BaseURL)
 				}
 			}
 
-		case html.TextToken:
+			// Identify context based on data attributes
+			if attr := getAttr(t.Attr, "data-cy"); attr != "" {
+				currentContext = attr
+			}
+			if attr := getAttr(t.Attr, "data-testid"); attr != "" {
+				currentContext = attr
+			}
+
+			// Check specific selectors
+			if matchesSelector(t, config.PriceSelector) {
+				currentContext = "price"
+			} else if matchesSelector(t, config.LocationSelector) {
+				currentContext = "location-date"
+			} else if matchesSelector(t, config.TitleSelector) && isInLink {
+				currentContext = "title"
+			}
+
+			depth++
+
+		case html.EndTagToken:
 			t := tkn.Token()
-			if isTitle {
-				offer.Title = t.Data
-				isTitle = false
-			} else if isPrice {
-				data := t.Data
-				data = strings.ReplaceAll(data, " ", "")
-				data = regexp.MustCompile(`\d+`).FindString(data)
-				if data == "" {
-					offer.Price = 0
+			if t.Data == "a" {
+				isInLink = false
+			}
+			depth--
+
+		case html.TextToken:
+			text := strings.TrimSpace(tkn.Token().Data)
+			if text == "" {
+				continue
+			}
+
+			switch currentContext {
+			case "title":
+				if offer.Title == "" {
+					offer.Title = text
+					log.Printf("[DEBUG] Found title: %s", text)
 				}
-				var err error
-				offer.Price, err = strconv.Atoi(data)
-				if err != nil {
-					offer.Price = 0
+
+			case "price", "ad-price":
+				price := extractPrice(text, config.PricePattern)
+				if price > 0 {
+					offer.Price = price
+					log.Printf("[DEBUG] Found price: %d", price)
 				}
-				isPrice = false
-			} else if isTimeAndLoc {
-				offer.Location = t.Data
-				for i := 0; i < 4; i++ {
-					tkn.Next()
+
+			case "location-date":
+				location, timeStr := extractLocationAndTime(text, config)
+				if offer.Location == "" && location != "" {
+					offer.Location = location
+					log.Printf("[DEBUG] Found location: %s", location)
 				}
-				// Exit if the date is not today
-				date_str := tkn.Token().Data
-				if !strings.Contains(date_str, "Dzisiaj") {
-					return Offer{}
+				if offer.Time == "" && timeStr != "" {
+					offer.Time = timeStr
+					log.Printf("[DEBUG] Found time: %s", timeStr)
 				}
-				// Convert the time_str from UTC to the GTM+1 timezone
-				re_time := regexp.MustCompile(`\d{2}:\d{2}`)
-				t, err := time.Parse("15:04", re_time.FindString(date_str))
-				if err != nil {
-					log.Println(err)
-					return Offer{}
-				}
-				t = t.Add(time.Hour)
-				t = t.Add(time.Hour)
-				offer.Time = t.Format("15:04")
-				isTimeAndLoc = false
 			}
 		}
 	}
+}
+
+// Helper functions
+
+func matchesSelector(token html.Token, selector Selector) bool {
+	if selector.Tag != "" && token.Data != selector.Tag {
+		return false
+	}
+	if selector.Attribute != "" && selector.Value != "" {
+		return checkAttr(token.Attr, selector.Attribute, selector.Value)
+	}
+	return selector.Tag == token.Data
+}
+
+func normalizeURL(url, baseURL string) string {
+	if strings.HasPrefix(url, "/") {
+		return baseURL + url
+	}
+	if !strings.HasPrefix(url, "http") {
+		return baseURL + "/" + url
+	}
+	return url
+}
+
+func extractPrice(text string, pattern *regexp.Regexp) int {
+	// Remove spaces and find numbers
+	text = strings.ReplaceAll(text, " ", "")
+	text = strings.ReplaceAll(text, "\u00a0", "") // non-breaking space
+
+	matches := pattern.FindAllString(text, -1)
+	if len(matches) > 0 {
+		// Join all numbers (handles prices like "1 700")
+		priceStr := strings.Join(matches, "")
+		if price, err := strconv.Atoi(priceStr); err == nil {
+			return price
+		}
+	}
+	return 0
+}
+
+func extractLocationAndTime(text string, config ExtractorConfig) (location, timeStr string) {
+	// Split by common separators
+	parts := strings.Split(text, " - ")
+	if len(parts) >= 2 {
+		location = strings.TrimSpace(parts[0])
+		dateTimeStr := strings.TrimSpace(parts[1])
+
+		// Check if it's today
+		if !strings.Contains(dateTimeStr, config.TodayKeyword) {
+			log.Printf("[DEBUG] Skipping non-today offer: %s", dateTimeStr)
+			return location, ""
+		}
+
+		// Extract time
+		if matches := config.TimePattern.FindStringSubmatch(dateTimeStr); len(matches) > 0 {
+			if t, err := time.Parse("15:04", matches[0]); err == nil {
+				// Adjust timezone
+				t = t.Add(config.TimezoneOffset)
+				timeStr = t.Format("15:04")
+			}
+		}
+	} else {
+		// Try to extract location from the whole text
+		location = text
+	}
+
+	return location, timeStr
 }
 
 // Parse the HTML code and extract all the offers.
