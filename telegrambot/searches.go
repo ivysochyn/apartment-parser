@@ -188,7 +188,14 @@ func displayFullSearchInfo(bot *tgbotapi.BotAPI, userID int64, search_id_str str
 func newSearchProcessCity(bot *tgbotapi.BotAPI, userID int64, city string, db *sql.DB) {
 
 	msg := tgbotapi.NewMessage(userID, "")
-	msg.Text = "💵 Write the price range in PLN (e.g. 1000-2000)"
+	msg.Text = `💵 Enter the price range in PLN:
+
+Examples:
+• 1000-2000 - from 1000 to 2000 PLN
+• 1500+ - from 1500 PLN (no upper limit)
+• -2000 or 2000 - up to 2000 PLN
+• 1500- - from 1500 PLN (alternative format)`
+
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("❌ Cancel", "search|cancel_new_search|"),
@@ -221,7 +228,13 @@ func newSearchProcessPrice(bot *tgbotapi.BotAPI, update tgbotapi.Update, db *sql
 	if err != nil {
 		log.Println(err)
 
-		msg.Text = "❌ Invalid price range. Please try again."
+		msg.Text = `❌ Invalid price format. Please use one of these formats:
+• 1000-2000 (range)
+• 1500+ (minimum only)
+• -2000 or 2000 (maximum only)
+
+Error: ` + err.Error()
+
 		sendMessage(bot, msg)
 		delete(userStates, update.Message.Chat.ID)
 

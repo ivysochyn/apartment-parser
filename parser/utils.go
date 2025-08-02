@@ -136,8 +136,20 @@ func GetSearchShortInfo(url_string string) (string, error) {
 			return "", err
 		}
 
-		// Get the price
-		text += " (" + u.Query().Get("search[filter_float_price:from]") + "-" + u.Query().Get("search[filter_float_price:to]") + ")"
+		// Get the from price, if not present - set 0
+		fromPrice, ok := u.Query()["search[filter_float_price:from]"]
+		if !ok || len(fromPrice) == 0 {
+			fromPrice = []string{"0"}
+		}
+		// Get the to price, if not present keep it empty, else prepend '-'
+		toPrice, ok := u.Query()["search[filter_float_price:to]"]
+		if !ok || len(toPrice) == 0 {
+			toPrice = []string{""}
+		} else {
+			toPrice[0] = "-" + toPrice[0]
+		}
+
+		text += "(" + fromPrice[0] + toPrice[0] + ") "
 
 		return text, nil
 	} else {
@@ -163,10 +175,14 @@ func GetSearchFullInfo(url_string string) (string, error) {
 
 		q := u.Query()
 
+		text += "💰 Price: "
 		if price_from, ok := q["search[filter_float_price:from]"]; ok {
-			if price_to, ok := q["search[filter_float_price:to]"]; ok {
-				text += "💰 Price: " + price_from[0] + "-" + price_to[0] + " zł\n"
+				text += price_from[0]
+			} else {
+				text += "0"
 			}
+		if price_to, ok := q["search[filter_float_price:to]"]; ok {
+			text += " - " + price_to[0]
 		}
 
 		if size_from, ok := q["search[filter_float_m:from]"]; ok {
