@@ -186,9 +186,9 @@ func parseOlxOffer(offer Offer) Offer {
 			t := tkn.Token()
 			switch t.Data {
 			case "div":
-				isDescription = checkAttr(t.Attr, "class", "css-1t507yq")
+				isDescription = checkAttr(t.Attr, "class", "css-19duwlz")
 			case "p":
-				isTag = checkAttr(t.Attr, "class", "css-b5m1rv")
+				isTag = checkAttr(t.Attr, "class", "css-5l1a1j")
 			}
 
 		case html.TextToken:
@@ -247,7 +247,6 @@ func parseOlxOffer(offer Offer) Offer {
 //	The parsed offer.
 func parseOtodomOffer(offer Offer) Offer {
 	text, err := FetchHTMLPage(offer.Url)
-
 	if err != nil {
 		log.Printf("Error fetching the Otodom page: %v", err)
 		return offer
@@ -255,85 +254,81 @@ func parseOtodomOffer(offer Offer) Offer {
 
 	tkn := html.NewTokenizer(strings.NewReader(text))
 
-	var isRooms, isDescription, isArea, isFloor, isAdditionalPayment, isJson, isContent bool
-	var json string = ""
+	var (
+		isDescription, isJson bool
+		currentTag            string
+		isTagLabel            bool
+		isTagValue            bool
+		jsonText              string
+	)
 
 	for {
 		tt := tkn.Next()
 		switch tt {
 		case html.ErrorToken:
-			// End of the document, we're done
+			// End of the document
 			return offer
 
 		case html.StartTagToken:
 			t := tkn.Token()
-			switch t.Data {
-			case "div":
-				// Tags
-				dataid := getAttr(t.Attr, "aria-label")
-				switch dataid {
-				case "Piętro":
-					isFloor = true
-				case "Czynsz":
-					isAdditionalPayment = true
-				case "Powierzchnia":
-					isArea = true
-				case "Liczba pokoi":
-					isRooms = true
+
+			if t.Data == "p" && getAttr(t.Attr, "class") == "e1wd2yzk2 css-1airkmu" {
+				if getAttr(t.Attr, "data-sentry-element") == "Item" {
+					isTagLabel = true
+				} else {
+					isTagValue = true
 				}
-				isDescription = getAttr(t.Attr, "data-cy") == "adPageAdDescription"
-				isContent = getAttr(t.Attr, "class") == "css-1wi2w6s ewb0mtf5"
-			case "a":
-				isRooms = getAttr(t.Attr, "data-cy") == "ad-information-link"
-			case "script":
-				isJson = checkAttr(t.Attr, "type", "application/json")
 			}
 
+			isDescription = getAttr(t.Attr, "data-cy") == "adPageAdDescription"
+			isJson = (t.Data == "script") && checkAttr(t.Attr, "type", "application/json")
+
 		case html.TextToken:
-			if isContent {
-				if isArea {
-					offer.Area = "Powierzchnia: " + string(tkn.Text())
-					isArea = false
-				} else if isFloor {
-					offer.Floor = "Poziom: " + string(tkn.Text())
-					isFloor = false
-				} else if isAdditionalPayment {
-					data := string(tkn.Text())
-					data = strings.ReplaceAll(data, " ", "")
-					data = regexp.MustCompile(`\d+`).FindString(data)
-					if data == "" {
-						offer.AdditionalPayment = 0
+			text := strings.TrimSpace(string(tkn.Text()))
+
+			if isTagLabel {
+				currentTag = strings.TrimSuffix(text, ":")
+				isTagLabel = false
+			} else if isTagValue && currentTag != "" {
+				switch currentTag {
+				case "Powierzchnia":
+					offer.Area = currentTag + ": " + text
+				case "Liczba pokoi":
+					offer.Rooms = currentTag + ": " + text
+				case "Piętro":
+					offer.Floor = currentTag + ": " + text
+				case "Czynsz":
+					val := strings.ReplaceAll(text, " ", "")
+					val = regexp.MustCompile(`\d+`).FindString(val)
+					if v, err := strconv.Atoi(val); err == nil {
+						offer.AdditionalPayment = v
 					}
-					offer.AdditionalPayment, err = strconv.Atoi(data)
-					if err != nil {
-						offer.AdditionalPayment = 0
-					}
-					isAdditionalPayment = false
-				} else if isRooms {
-					offer.Rooms = "Liczba pokoi: " + string(tkn.Text())
-					isRooms = false
-				} else if isDescription {
-					offer.Description += string(tkn.Text()) + "\n"
 				}
+				currentTag = ""
+				isTagValue = false
+			}
+
+			if isDescription {
+				offer.Description += text + "\n"
 			}
 
 			if isJson {
-				json += string(tkn.Text())
+				jsonText += text
 			}
 
 		case html.EndTagToken:
 			t := tkn.Token()
+
 			if t.Data == "script" && isJson {
 				isJson = false
-				offer.Images, err = parseOtodomImages(json)
+				offer.Images, err = parseOtodomImages(jsonText)
 				if err != nil {
 					log.Println(err)
 				}
 			} else if t.Data == "div" && isDescription {
 				isDescription = false
-				// Strip the last newline character if present
 				if len(offer.Description) > 0 {
-					offer.Description = offer.Description[:len(offer.Description)-1]
+					offer.Description = strings.TrimSuffix(offer.Description, "\n")
 				}
 			}
 
